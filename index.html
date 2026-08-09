@@ -11,7 +11,7 @@
     <section class="hero">
       <p class="eyebrow">Jouer Pour de Bon</p>
       <h1>Espace organisateur</h1>
-      <p class="intro">Créez et gérez vos événements. Cette première version est une interface de démonstration : aucune donnée n’est encore enregistrée.</p>
+      <p class="intro">Créez et gérez vos événements. Cette version reste un prototype : les boutons de sauvegarde et publication ne modifient encore aucune donnée réelle.</p>
       <button id="createEventBtn" class="primary" type="button">+ Créer un événement</button>
     </section>
 
@@ -21,18 +21,169 @@
           <p class="eyebrow">Tableau de bord</p>
           <h2 id="eventsTitle">Mes événements</h2>
         </div>
-        <span class="status">Prototype</span>
+        <span class="status">Prototype sécurisé</span>
       </div>
 
       <div id="emptyState" class="empty-state">
         <h3>Aucun événement pour le moment</h3>
-        <p>Quand l’API sera connectée, les événements que vous organisez apparaîtront ici.</p>
+        <p>Quand l’API sera connectée, seuls les événements appartenant à l’organisateur connecté apparaîtront ici.</p>
       </div>
 
       <section id="createPanel" class="create-panel" hidden>
-        <h3>Créer un événement</h3>
-        <p>Le formulaire complet sera ajouté ici à l’étape suivante.</p>
-        <button id="closeCreateBtn" class="secondary" type="button">Fermer</button>
+        <div class="form-heading">
+          <div>
+            <p class="eyebrow">Nouvel événement</p>
+            <h3>Créer un événement</h3>
+          </div>
+          <button id="closeCreateBtn" class="text-button" type="button">Fermer</button>
+        </div>
+
+        <form id="eventForm">
+          <fieldset>
+            <legend>1. Informations générales</legend>
+            <div class="form-grid">
+              <label class="full-width">Nom de l’événement
+                <input name="title" type="text" required placeholder="Ex. Basketball Knockout — Sherbrooke" />
+              </label>
+              <label>Jeu / activité
+                <input name="activityType" type="text" required placeholder="Ex. Basketball Knockout" />
+              </label>
+              <label>Format
+                <select name="format">
+                  <option value="in_person">Présentiel</option>
+                  <option value="online">En ligne</option>
+                  <option value="hybrid">Hybride</option>
+                </select>
+              </label>
+              <label class="full-width">Description
+                <textarea name="description" rows="5" placeholder="Expliquez le déroulement, les règles principales et ce que les joueurs doivent savoir."></textarea>
+              </label>
+              <label class="full-width">Image de l’événement — URL (optionnel)
+                <input name="imageUrl" type="url" placeholder="https://…" />
+              </label>
+            </div>
+          </fieldset>
+
+          <fieldset>
+            <legend>2. Date et lieu</legend>
+            <div class="form-grid">
+              <label>Date
+                <input name="date" type="date" required />
+              </label>
+              <label>Fuseau horaire
+                <select name="timezone">
+                  <option value="America/Toronto">America/Toronto</option>
+                  <option value="America/Montreal">America/Montreal</option>
+                  <option value="UTC">UTC</option>
+                </select>
+              </label>
+              <label>Heure de début
+                <input name="startTime" type="time" required />
+              </label>
+              <label>Heure de fin
+                <input name="endTime" type="time" required />
+              </label>
+              <label>Ville
+                <input name="city" type="text" required placeholder="Ex. Sherbrooke" />
+              </label>
+              <label>Province / région
+                <input name="region" type="text" placeholder="Ex. Québec" />
+              </label>
+              <label class="full-width">Lieu / adresse
+                <input name="venue" type="text" placeholder="Nom du lieu et adresse complète" />
+              </label>
+            </div>
+          </fieldset>
+
+          <fieldset>
+            <legend>3. Participation</legend>
+            <div class="form-grid">
+              <label>Prix d’inscription
+                <input name="fee" type="number" min="0" step="0.01" required placeholder="10.00" />
+              </label>
+              <label>Devise
+                <select name="currency">
+                  <option value="CAD">CAD</option>
+                  <option value="USD">USD</option>
+                  <option value="EUR">EUR</option>
+                </select>
+              </label>
+              <label>Nombre maximum de joueurs
+                <input name="capacity" type="number" min="2" step="1" placeholder="12" />
+              </label>
+              <label>Date limite d’inscription
+                <input name="registrationDeadline" type="datetime-local" />
+              </label>
+              <label>Âge minimum
+                <input name="minimumAge" type="number" min="0" step="1" placeholder="0" />
+              </label>
+              <label>Niveau recommandé
+                <select name="skillLevel">
+                  <option value="all">Tous niveaux</option>
+                  <option value="beginner">Débutant</option>
+                  <option value="intermediate">Intermédiaire</option>
+                  <option value="advanced">Avancé</option>
+                </select>
+              </label>
+            </div>
+          </fieldset>
+
+          <fieldset>
+            <legend>4. Cause soutenue</legend>
+            <div class="form-grid">
+              <label class="full-width">Cause
+                <input name="cause" type="text" required placeholder="Ex. Amis de la terre" />
+              </label>
+              <div class="info-box full-width">
+                <strong>Règle Jouer Pour de Bon</strong>
+                <p>La logique de répartition des fonds sera appliquée et vérifiée côté backend. L’organisateur ne pourra pas modifier les règles financières de la plateforme.</p>
+              </div>
+            </div>
+          </fieldset>
+
+          <fieldset>
+            <legend>5. Organisation et contact</legend>
+            <div class="form-grid">
+              <label class="full-width">Lien de contact ou réseau social
+                <input name="contactUrl" type="url" placeholder="https://…" />
+              </label>
+              <div class="info-box full-width">
+                <strong>Organisateur</strong>
+                <p>L’identité de l’organisateur sera remplie automatiquement à partir du compte connecté. Elle ne sera pas sélectionnable manuellement.</p>
+              </div>
+            </div>
+          </fieldset>
+
+          <fieldset>
+            <legend>6. Publication</legend>
+            <div class="form-grid">
+              <label>Visibilité
+                <select name="visibility">
+                  <option value="public">Public</option>
+                  <option value="unlisted">Non répertorié</option>
+                </select>
+              </label>
+              <label>Statut initial
+                <select name="status">
+                  <option value="draft">Brouillon</option>
+                  <option value="open_for_registration">Ouvert aux inscriptions</option>
+                </select>
+              </label>
+            </div>
+          </fieldset>
+
+          <section class="preview-card" aria-labelledby="previewTitle">
+            <p class="eyebrow">Aperçu</p>
+            <h4 id="previewTitle">Votre événement</h4>
+            <p id="previewSummary">Remplissez le nom, la ville et la date pour voir un résumé ici.</p>
+          </section>
+
+          <div class="form-actions">
+            <button id="saveDraftBtn" class="secondary" type="button">Enregistrer comme brouillon</button>
+            <button id="publishBtn" class="primary" type="submit">Publier l’événement</button>
+          </div>
+          <p id="formMessage" class="form-message" aria-live="polite"></p>
+        </form>
       </section>
     </section>
   </main>
