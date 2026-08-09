@@ -2,23 +2,14 @@
   font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
   color: #17324d;
   background: #f7f9fc;
-  font-synthesis: none;
-  text-rendering: optimizeLegibility;
   --pfg-blue-900: #0d2a47;
   --pfg-blue-800: #12365c;
   --pfg-blue-700: #174774;
-  --pfg-blue-100: #eaf2f9;
   --pfg-green-700: #19764b;
   --pfg-green-600: #23895a;
   --pfg-green-100: #e8f6ee;
-  --pfg-amber-700: #976100;
-  --pfg-amber-100: #fff4d8;
-  --pfg-red-700: #a23b43;
-  --pfg-red-100: #fff0f1;
-  --pfg-ink: #17324d;
   --pfg-muted: #667b8f;
   --pfg-line: #dbe4ec;
-  --pfg-surface: #ffffff;
   --pfg-bg: #f7f9fc;
   --pfg-radius: 18px;
   --pfg-radius-sm: 11px;
@@ -33,8 +24,8 @@ body {
   min-width: 320px;
   min-height: 100vh;
   background:
-    radial-gradient(circle at 10% 0%, rgba(35, 137, 90, .07), transparent 28rem),
-    radial-gradient(circle at 100% 8%, rgba(23, 71, 116, .08), transparent 32rem),
+    radial-gradient(circle at 10% 0%, rgba(35,137,90,.07), transparent 28rem),
+    radial-gradient(circle at 100% 8%, rgba(23,71,116,.08), transparent 32rem),
     var(--pfg-bg);
 }
 button, input, select, textarea { font: inherit; }
@@ -48,10 +39,8 @@ button { cursor: pointer; }
 
 .hero {
   position: relative;
-  max-width: none;
   margin-bottom: 28px;
-  padding: 26px;
-  padding-right: 150px;
+  padding: 26px 150px 26px 26px;
   border: 1px solid var(--pfg-line);
   background: rgba(255,255,255,.96);
   border-radius: var(--pfg-radius);
@@ -68,21 +57,19 @@ button { cursor: pointer; }
 
 .hero-topbar { display: block; }
 
+/* Keep the language toggle INSIDE the white hero card, at its top-right. */
 .language-switcher {
-  position: fixed;
-  top: 16px;
-  right: 16px;
-  left: auto;
+  position: absolute;
+  top: 18px;
+  right: 18px;
   display: flex;
   align-items: center;
-  justify-content: flex-end;
   gap: 6px;
-  z-index: 9999;
+  z-index: 2;
   padding: 4px;
   border: 1px solid var(--pfg-line);
   border-radius: 13px;
-  background: rgba(255,255,255,.96);
-  box-shadow: var(--pfg-shadow-soft);
+  background: #fff;
 }
 
 .lang-btn {
@@ -90,7 +77,6 @@ button { cursor: pointer; }
   padding: 6px 10px;
   font-size: .75rem;
 }
-
 .lang-btn.is-active {
   color: #fff;
   background: var(--pfg-blue-800);
@@ -145,9 +131,9 @@ h3, h4 { margin-top: 0; }
   font-size: .86rem;
   transition: .15s ease;
 }
-.primary { color: white; background: var(--pfg-blue-800); }
+.primary { color: #fff; background: var(--pfg-blue-800); }
 .primary:hover { background: var(--pfg-blue-900); }
-.secondary { color: var(--pfg-blue-800); background: white; border-color: var(--pfg-line); }
+.secondary { color: var(--pfg-blue-800); background: #fff; border-color: var(--pfg-line); }
 .text-button { color: var(--pfg-blue-700); background: transparent; }
 
 .panel-header,
@@ -162,7 +148,6 @@ h3, h4 { margin-top: 0; }
 
 .status {
   display: inline-flex;
-  align-items: center;
   width: fit-content;
   padding: 7px 10px;
   border-radius: 999px;
@@ -170,7 +155,6 @@ h3, h4 { margin-top: 0; }
   background: var(--pfg-green-100);
   font-size: .79rem;
   font-weight: 800;
-  white-space: nowrap;
 }
 
 .empty-state {
@@ -187,11 +171,7 @@ h3, h4 { margin-top: 0; }
 .empty-state h3 { margin: 10px 0 4px; }
 .empty-state p { margin: 0; line-height: 1.6; }
 
-.create-panel {
-  padding: 22px;
-  box-shadow: var(--pfg-shadow);
-}
-
+.create-panel { padding: 22px; box-shadow: var(--pfg-shadow); }
 form { display: grid; gap: 18px; }
 fieldset {
   border: 1px solid var(--pfg-line);
@@ -199,18 +179,8 @@ fieldset {
   padding: 18px;
   background: #fbfcfe;
 }
-legend {
-  padding: 0 8px;
-  color: var(--pfg-blue-900);
-  font-weight: 850;
-}
-
-.form-grid {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 14px;
-}
-
+legend { padding: 0 8px; color: var(--pfg-blue-900); font-weight: 850; }
+.form-grid { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 14px; }
 label {
   display: flex;
   flex-direction: column;
@@ -222,33 +192,25 @@ label {
   text-transform: uppercase;
 }
 .full-width { grid-column: 1 / -1; }
-
-input,
-select,
-textarea {
+input, select, textarea {
   width: 100%;
   min-height: 47px;
   padding: 0 12px;
   border: 1px solid var(--pfg-line);
   border-radius: var(--pfg-radius-sm);
   outline: 0;
-  color: var(--pfg-ink);
-  background: white;
+  color: #17324d;
+  background: #fff;
   font-size: .95rem;
   font-weight: 500;
   letter-spacing: normal;
   text-transform: none;
 }
-textarea {
-  min-height: 120px;
-  padding: 12px;
-  resize: vertical;
-}
+textarea { min-height: 120px; padding: 12px; resize: vertical; }
 input:focus, select:focus, textarea:focus {
   border-color: #8ab3d5;
   box-shadow: 0 0 0 4px rgba(23,71,116,.08);
 }
-
 .info-box,
 .preview-card {
   padding: 15px;
@@ -256,22 +218,9 @@ input:focus, select:focus, textarea:focus {
   border-radius: 13px;
   background: #fbfcfe;
 }
-.info-box strong,
-.preview-card h4 { color: var(--pfg-blue-900); }
-.info-box p,
-.preview-card p {
-  margin: 6px 0 0;
-  color: var(--pfg-muted);
-  line-height: 1.55;
-}
-
-.form-actions {
-  display: flex;
-  justify-content: flex-end;
-  gap: 10px;
-  flex-wrap: wrap;
-  padding-top: 2px;
-}
+.info-box strong, .preview-card h4 { color: var(--pfg-blue-900); }
+.info-box p, .preview-card p { margin: 6px 0 0; color: var(--pfg-muted); line-height: 1.55; }
+.form-actions { display: flex; justify-content: flex-end; gap: 10px; flex-wrap: wrap; }
 .form-message { min-height: 1.4em; margin: 0; color: var(--pfg-muted); }
 
 @media (max-width: 760px) {
@@ -280,10 +229,10 @@ input:focus, select:focus, textarea:focus {
 }
 
 @media (max-width: 640px) {
-  .shell { width: min(100% - 20px, 1180px); padding: 68px 0 32px; }
+  .shell { width: min(100% - 20px,1180px); padding: 28px 0 32px; }
   .hero, .panel, .create-panel { padding: 18px; border-radius: 14px; }
-  .hero { padding-top: 18px; }
-  .language-switcher { top: 10px; right: 10px; }
+  .hero { padding-top: 62px; }
+  .language-switcher { top: 14px; right: 14px; }
   .panel-header, .form-heading { flex-direction: column; }
   .primary { width: 100%; }
   .lang-btn { width: auto; }
