@@ -9,178 +9,150 @@
 <body>
   <main class="shell">
     <section class="hero">
-      <p class="eyebrow">Jouer Pour de Bon</p>
-      <h1>Espace organisateur</h1>
-      <p class="intro">Créez et gérez vos événements. Cette version reste un prototype : les boutons de sauvegarde et publication ne modifient encore aucune donnée réelle.</p>
-      <button id="createEventBtn" class="primary" type="button">+ Créer un événement</button>
+      <div class="hero-topbar">
+        <p class="eyebrow" data-i18n="brand">Jouer Pour de Bon</p>
+        <div class="language-switcher" aria-label="Choix de langue">
+          <button id="langFrBtn" class="secondary lang-btn is-active" type="button" aria-pressed="true">FR</button>
+          <button id="langEnBtn" class="secondary lang-btn" type="button" aria-pressed="false">EN</button>
+        </div>
+      </div>
+      <h1 data-i18n="heroTitle">Espace organisateur</h1>
+      <p class="intro" data-i18n="heroIntro">Créez et gérez vos événements. Cette version reste un prototype : les boutons de sauvegarde et publication ne modifient encore aucune donnée réelle.</p>
+      <button id="createEventBtn" class="primary" type="button" data-i18n="createEvent">+ Créer un événement</button>
     </section>
 
     <section class="panel" aria-labelledby="eventsTitle">
       <div class="panel-header">
         <div>
-          <p class="eyebrow">Tableau de bord</p>
-          <h2 id="eventsTitle">Mes événements</h2>
+          <p class="eyebrow" data-i18n="dashboard">Tableau de bord</p>
+          <h2 id="eventsTitle" data-i18n="myEvents">Mes événements</h2>
         </div>
-        <span class="status">Prototype sécurisé</span>
+        <span class="status" data-i18n="securePrototype">Prototype sécurisé</span>
       </div>
 
       <div id="emptyState" class="empty-state">
-        <h3>Aucun événement pour le moment</h3>
-        <p>Quand l’API sera connectée, seuls les événements appartenant à l’organisateur connecté apparaîtront ici.</p>
+        <h3 data-i18n="noEvents">Aucun événement pour le moment</h3>
+        <p data-i18n="noEventsBody">Quand l’API sera connectée, seuls les événements appartenant à l’organisateur connecté apparaîtront ici.</p>
       </div>
 
       <section id="createPanel" class="create-panel" hidden>
         <div class="form-heading">
           <div>
-            <p class="eyebrow">Nouvel événement</p>
-            <h3>Créer un événement</h3>
+            <p class="eyebrow" data-i18n="newEvent">Nouvel événement</p>
+            <h3 data-i18n="createEventTitle">Créer un événement</h3>
           </div>
-          <button id="closeCreateBtn" class="text-button" type="button">Fermer</button>
+          <button id="closeCreateBtn" class="text-button" type="button" data-i18n="close">Fermer</button>
         </div>
 
         <form id="eventForm">
           <fieldset>
-            <legend>1. Informations générales</legend>
+            <legend data-i18n="generalLegend">1. Informations générales</legend>
             <div class="form-grid">
-              <label class="full-width">Nom de l’événement
-                <input name="title" type="text" required placeholder="Ex. Basketball Knockout — Sherbrooke" />
+              <label class="full-width"><span data-i18n="eventName">Nom de l’événement</span>
+                <input name="title" type="text" required data-placeholder-fr="Ex. Basketball Knockout — Sherbrooke" data-placeholder-en="Ex. Basketball Knockout — Sherbrooke" placeholder="Ex. Basketball Knockout — Sherbrooke" />
               </label>
-              <label>Jeu / activité
-                <input name="activityType" type="text" required placeholder="Ex. Basketball Knockout" />
+              <label><span data-i18n="activity">Jeu / activité</span>
+                <input name="activityType" type="text" required data-placeholder-fr="Ex. Basketball Knockout" data-placeholder-en="Ex. Basketball Knockout" placeholder="Ex. Basketball Knockout" />
               </label>
-              <label>Format
+              <label><span data-i18n="format">Format</span>
                 <select name="format">
-                  <option value="in_person">Présentiel</option>
-                  <option value="online">En ligne</option>
-                  <option value="hybrid">Hybride</option>
+                  <option value="in_person" data-i18n="inPerson">Présentiel</option>
+                  <option value="online" data-i18n="online">En ligne</option>
+                  <option value="hybrid" data-i18n="hybrid">Hybride</option>
                 </select>
               </label>
-              <label class="full-width">Description
-                <textarea name="description" rows="5" placeholder="Expliquez le déroulement, les règles principales et ce que les joueurs doivent savoir."></textarea>
+              <label class="full-width"><span data-i18n="description">Description</span>
+                <textarea name="description" rows="5" data-placeholder-fr="Expliquez le déroulement, les règles principales et ce que les joueurs doivent savoir." data-placeholder-en="Explain how the event works, the main rules, and what players need to know." placeholder="Expliquez le déroulement, les règles principales et ce que les joueurs doivent savoir."></textarea>
               </label>
-              <label class="full-width">Image de l’événement — URL (optionnel)
+              <label class="full-width"><span data-i18n="imageUrl">Image de l’événement — URL (optionnel)</span>
                 <input name="imageUrl" type="url" placeholder="https://…" />
               </label>
             </div>
           </fieldset>
 
           <fieldset>
-            <legend>2. Date et lieu</legend>
+            <legend data-i18n="datePlaceLegend">2. Date et lieu</legend>
             <div class="form-grid">
-              <label>Date
-                <input name="date" type="date" required />
-              </label>
-              <label>Fuseau horaire
+              <label><span data-i18n="date">Date</span><input name="date" type="date" required /></label>
+              <label><span data-i18n="timezone">Fuseau horaire</span>
                 <select name="timezone">
                   <option value="America/Toronto">America/Toronto</option>
                   <option value="America/Montreal">America/Montreal</option>
                   <option value="UTC">UTC</option>
                 </select>
               </label>
-              <label>Heure de début
-                <input name="startTime" type="time" required />
-              </label>
-              <label>Heure de fin
-                <input name="endTime" type="time" required />
-              </label>
-              <label>Ville
-                <input name="city" type="text" required placeholder="Ex. Sherbrooke" />
-              </label>
-              <label>Province / région
-                <input name="region" type="text" placeholder="Ex. Québec" />
-              </label>
-              <label class="full-width">Lieu / adresse
-                <input name="venue" type="text" placeholder="Nom du lieu et adresse complète" />
-              </label>
+              <label><span data-i18n="startTime">Heure de début</span><input name="startTime" type="time" required /></label>
+              <label><span data-i18n="endTime">Heure de fin</span><input name="endTime" type="time" required /></label>
+              <label><span data-i18n="city">Ville</span><input name="city" type="text" required data-placeholder-fr="Ex. Sherbrooke" data-placeholder-en="Ex. Sherbrooke" placeholder="Ex. Sherbrooke" /></label>
+              <label><span data-i18n="region">Province / région</span><input name="region" type="text" data-placeholder-fr="Ex. Québec" data-placeholder-en="Ex. Quebec" placeholder="Ex. Québec" /></label>
+              <label class="full-width"><span data-i18n="venue">Lieu / adresse</span><input name="venue" type="text" data-placeholder-fr="Nom du lieu et adresse complète" data-placeholder-en="Venue name and full address" placeholder="Nom du lieu et adresse complète" /></label>
             </div>
           </fieldset>
 
           <fieldset>
-            <legend>3. Participation</legend>
+            <legend data-i18n="participationLegend">3. Participation</legend>
             <div class="form-grid">
-              <label>Prix d’inscription
-                <input name="fee" type="number" min="0" step="0.01" required placeholder="10.00" />
+              <label><span data-i18n="fee">Prix d’inscription</span><input name="fee" type="number" min="0" step="0.01" required placeholder="10.00" /></label>
+              <label><span data-i18n="currency">Devise</span>
+                <select name="currency"><option value="CAD">CAD</option><option value="USD">USD</option><option value="EUR">EUR</option></select>
               </label>
-              <label>Devise
-                <select name="currency">
-                  <option value="CAD">CAD</option>
-                  <option value="USD">USD</option>
-                  <option value="EUR">EUR</option>
-                </select>
-              </label>
-              <label>Nombre maximum de joueurs
-                <input name="capacity" type="number" min="2" step="1" placeholder="12" />
-              </label>
-              <label>Date limite d’inscription
-                <input name="registrationDeadline" type="datetime-local" />
-              </label>
-              <label>Âge minimum
-                <input name="minimumAge" type="number" min="0" step="1" placeholder="0" />
-              </label>
-              <label>Niveau recommandé
+              <label><span data-i18n="capacity">Nombre maximum de joueurs</span><input name="capacity" type="number" min="2" step="1" placeholder="12" /></label>
+              <label><span data-i18n="deadline">Date limite d’inscription</span><input name="registrationDeadline" type="datetime-local" /></label>
+              <label><span data-i18n="minimumAge">Âge minimum</span><input name="minimumAge" type="number" min="0" step="1" placeholder="0" /></label>
+              <label><span data-i18n="skillLevel">Niveau recommandé</span>
                 <select name="skillLevel">
-                  <option value="all">Tous niveaux</option>
-                  <option value="beginner">Débutant</option>
-                  <option value="intermediate">Intermédiaire</option>
-                  <option value="advanced">Avancé</option>
+                  <option value="all" data-i18n="allLevels">Tous niveaux</option>
+                  <option value="beginner" data-i18n="beginner">Débutant</option>
+                  <option value="intermediate" data-i18n="intermediate">Intermédiaire</option>
+                  <option value="advanced" data-i18n="advanced">Avancé</option>
                 </select>
               </label>
             </div>
           </fieldset>
 
           <fieldset>
-            <legend>4. Cause soutenue</legend>
+            <legend data-i18n="causeLegend">4. Cause soutenue</legend>
             <div class="form-grid">
-              <label class="full-width">Cause
-                <input name="cause" type="text" required placeholder="Ex. Amis de la terre" />
-              </label>
+              <label class="full-width"><span data-i18n="cause">Cause</span><input name="cause" type="text" required data-placeholder-fr="Ex. Amis de la terre" data-placeholder-en="Ex. Friends of the Earth" placeholder="Ex. Amis de la terre" /></label>
               <div class="info-box full-width">
-                <strong>Règle Jouer Pour de Bon</strong>
-                <p>La logique de répartition des fonds sera appliquée et vérifiée côté backend. L’organisateur ne pourra pas modifier les règles financières de la plateforme.</p>
+                <strong data-i18n="pfgRule">Règle Jouer Pour de Bon</strong>
+                <p data-i18n="pfgRuleBody">La logique de répartition des fonds sera appliquée et vérifiée côté backend. L’organisateur ne pourra pas modifier les règles financières de la plateforme.</p>
               </div>
             </div>
           </fieldset>
 
           <fieldset>
-            <legend>5. Organisation et contact</legend>
+            <legend data-i18n="contactLegend">5. Organisation et contact</legend>
             <div class="form-grid">
-              <label class="full-width">Lien de contact ou réseau social
-                <input name="contactUrl" type="url" placeholder="https://…" />
-              </label>
+              <label class="full-width"><span data-i18n="contactLink">Lien de contact ou réseau social</span><input name="contactUrl" type="url" placeholder="https://…" /></label>
               <div class="info-box full-width">
-                <strong>Organisateur</strong>
-                <p>L’identité de l’organisateur sera remplie automatiquement à partir du compte connecté. Elle ne sera pas sélectionnable manuellement.</p>
+                <strong data-i18n="organizer">Organisateur</strong>
+                <p data-i18n="organizerBody">L’identité de l’organisateur sera remplie automatiquement à partir du compte connecté. Elle ne sera pas sélectionnable manuellement.</p>
               </div>
             </div>
           </fieldset>
 
           <fieldset>
-            <legend>6. Publication</legend>
+            <legend data-i18n="publicationLegend">6. Publication</legend>
             <div class="form-grid">
-              <label>Visibilité
-                <select name="visibility">
-                  <option value="public">Public</option>
-                  <option value="unlisted">Non répertorié</option>
-                </select>
+              <label><span data-i18n="visibility">Visibilité</span>
+                <select name="visibility"><option value="public" data-i18n="public">Public</option><option value="unlisted" data-i18n="unlisted">Non répertorié</option></select>
               </label>
-              <label>Statut initial
-                <select name="status">
-                  <option value="draft">Brouillon</option>
-                  <option value="open_for_registration">Ouvert aux inscriptions</option>
-                </select>
+              <label><span data-i18n="initialStatus">Statut initial</span>
+                <select name="status"><option value="draft" data-i18n="draft">Brouillon</option><option value="open_for_registration" data-i18n="openRegistration">Ouvert aux inscriptions</option></select>
               </label>
             </div>
           </fieldset>
 
           <section class="preview-card" aria-labelledby="previewTitle">
-            <p class="eyebrow">Aperçu</p>
-            <h4 id="previewTitle">Votre événement</h4>
+            <p class="eyebrow" data-i18n="preview">Aperçu</p>
+            <h4 id="previewTitle" data-i18n-default="eventPreview">Votre événement</h4>
             <p id="previewSummary">Remplissez le nom, la ville et la date pour voir un résumé ici.</p>
           </section>
 
           <div class="form-actions">
-            <button id="saveDraftBtn" class="secondary" type="button">Enregistrer comme brouillon</button>
-            <button id="publishBtn" class="primary" type="submit">Publier l’événement</button>
+            <button id="saveDraftBtn" class="secondary" type="button" data-i18n="saveDraft">Enregistrer comme brouillon</button>
+            <button id="publishBtn" class="primary" type="submit" data-i18n="publish">Publier l’événement</button>
           </div>
           <p id="formMessage" class="form-message" aria-live="polite"></p>
         </form>
