@@ -66,6 +66,31 @@ button { cursor: pointer; }
   box-shadow: var(--pfg-shadow);
 }
 
+.hero-topbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.language-switcher {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.lang-btn {
+  min-height: 34px;
+  padding: 6px 10px;
+  font-size: .75rem;
+}
+
+.lang-btn.is-active {
+  color: #fff;
+  background: var(--pfg-blue-800);
+  border-color: var(--pfg-blue-800);
+}
+
 .panel { padding: 22px; }
 
 .eyebrow {
@@ -252,7 +277,9 @@ input:focus, select:focus, textarea:focus {
   .shell { width: min(100% - 20px, 1180px); padding: 28px 0 32px; }
   .hero, .panel, .create-panel { padding: 18px; border-radius: 14px; }
   .panel-header, .form-heading { flex-direction: column; }
+  .hero-topbar { align-items: flex-start; }
   .primary { width: 100%; }
+  .lang-btn { width: auto; }
   .form-actions { flex-direction: column-reverse; }
   .form-actions .secondary, .form-actions .primary { width: 100%; }
 }
