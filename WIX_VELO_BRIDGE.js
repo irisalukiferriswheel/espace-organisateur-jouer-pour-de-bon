@@ -1,9 +1,9 @@
-// À coller dans le code de la page Wix qui contient le composant HTML.
-// IMPORTANT : remplacez #htmlOrganisateur par l'ID réel de votre composant HTML Wix.
+// Code de pont Wix ↔ embed organisateur.
+// Le composant HTML Wix de la page organisateur a pour ID : #organizerEmbed
 
 import { currentMember } from 'wix-members-frontend';
 
-const HTML_COMPONENT_ID = '#htmlOrganisateur';
+const HTML_COMPONENT_ID = '#organizerEmbed';
 
 $w.onReady(() => {
   const html = $w(HTML_COMPONENT_ID);
