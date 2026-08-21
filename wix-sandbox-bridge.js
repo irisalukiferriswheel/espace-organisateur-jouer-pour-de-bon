@@ -4,6 +4,18 @@
 (function installWixSandboxBridge() {
   if (window.parent === window) return;
 
+  // Creating/filling the form is harmless UI. Keep that available even when the
+  // Wix role handshake is delayed or fails. Saving/publishing remains protected
+  // by Wix page code + authenticated backend web methods.
+  if (createEventBtn) createEventBtn.disabled = false;
+  createEventBtn?.addEventListener('click', () => {
+    if (!createPanel) return;
+    createPanel.hidden = false;
+    if (emptyState) emptyState.hidden = true;
+    if (eventsList) eventsList.hidden = true;
+    createPanel.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  });
+
   // Override the transport only. All privileged operations are still handled by
   // Wix page code + authenticated backend web methods.
   postToWix = function postToWixAcrossSandbox(type, extra = {}) {
@@ -30,12 +42,16 @@
       roles
     };
 
-    setOrganizerControlsEnabled(wixAuth.isOrganisateur);
+    // Never block opening/filling the form because of auth state. Only actions
+    // that mutate organizer data are gated.
+    if (createEventBtn) createEventBtn.disabled = false;
+    if (saveDraftBtn) saveDraftBtn.disabled = !wixAuth.isOrganisateur;
+    if (publishBtn) publishBtn.disabled = !wixAuth.isOrganisateur;
 
     if (!wixAuth.loggedIn) {
       if (formMessage) formMessage.textContent = language === 'fr'
-        ? 'Connectez-vous à Wix pour accéder à l’espace organisateur.'
-        : 'Log in to Wix to access the organizer space.';
+        ? 'Connectez-vous à Wix pour enregistrer ou publier cet événement.'
+        : 'Log in to Wix to save or publish this event.';
       return;
     }
 
@@ -44,8 +60,8 @@
         ? roles.join(', ')
         : (language === 'fr' ? 'aucun rôle détecté' : 'no role detected');
       if (formMessage) formMessage.textContent = language === 'fr'
-        ? `Accès organisateur requis. Rôles Wix détectés : ${detected}`
-        : `Organizer access required. Wix roles detected: ${detected}`;
+        ? `Vous pouvez préparer l’événement, mais l’enregistrement exige le rôle organisateur. Rôles Wix détectés : ${detected}`
+        : `You can prepare the event, but saving requires the organizer role. Wix roles detected: ${detected}`;
       return;
     }
 
