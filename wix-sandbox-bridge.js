@@ -8,7 +8,7 @@
   // actually serving, instead of guessing about cached/deployed branches.
   const buildMarker = document.createElement('div');
   buildMarker.id = 'jpdbOrganizerBuildMarker';
-  buildMarker.textContent = 'Organizer UI v11';
+  buildMarker.textContent = 'Organizer UI v12';
   buildMarker.style.cssText = 'position:fixed;right:8px;bottom:8px;z-index:99999;font:11px/1.2 sans-serif;padding:4px 6px;border-radius:4px;background:#111;color:#fff;opacity:.72;pointer-events:none';
   document.body.appendChild(buildMarker);
 
@@ -105,8 +105,12 @@
     if (event.source !== window.parent) return;
     const message = event.data;
     if (!message || message.source !== 'jpdb-wix') return;
-    if (message.type !== MESSAGE_TYPES.auth) return;
-    applyAuthMessage(message);
+
+    // Trust only messages from the actual Wix parent window. Add its sandbox
+    // origin so the app's existing receiver can process auth, list, save, and
+    // error replies instead of silently dropping non-auth responses.
+    if (event.origin) ALLOWED_WIX_ORIGINS.add(event.origin);
+    receiveWixMessage(event);
   });
 
   // The first request in app.js may have been blocked by a sandbox-origin
