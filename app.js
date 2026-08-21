@@ -18,6 +18,8 @@ const ALLOWED_WIX_ORIGINS = new Set([
 
 const MESSAGE_TYPES = Object.freeze({
   ready: 'JPDB_ORGANIZER_READY',
+  authRequest: 'JPDB_ORGANIZER_EMBED_READY',
+  auth: 'JPDB_WIX_MEMBER_AUTH',
   requestEvents: 'JPDB_ORGANIZER_REQUEST_EVENTS',
   events: 'JPDB_ORGANIZER_EVENTS',
   saveDraft: 'JPDB_ORGANIZER_SAVE_DRAFT',
@@ -38,11 +40,19 @@ let language = localStorage.getItem('pfg-organizer-language') || 'fr';
 let organizerEvents = [];
 let pendingSave = null;
 let eventsList = null;
+let wixAuth = {
+  received: false,
+  loggedIn: false,
+  isOrganisateur: false,
+  memberId: '',
+  roles: []
+};
 
 installParticipationModeField();
 installEventsList();
 initBridge();
 setLanguage(language);
+setOrganizerControlsEnabled(false);
 
 function installParticipationModeField() {
   if (!eventForm || eventForm.elements.participationMode) return;
@@ -68,6 +78,12 @@ function installEventsList() {
   eventsList.className = 'events-list';
   eventsList.hidden = true;
   emptyState?.insertAdjacentElement('afterend', eventsList);
+}
+
+function setOrganizerControlsEnabled(enabled) {
+  if (createEventBtn) createEventBtn.disabled = !enabled;
+  if (saveDraftBtn) saveDraftBtn.disabled = !enabled;
+  if (publishBtn) publishBtn.disabled = !enabled;
 }
 
 function setLanguage(nextLanguage) {
@@ -96,6 +112,7 @@ function setLanguage(nextLanguage) {
 }
 
 function openCreatePanel() {
+  if (!wixAuth.isOrganisateur) return;
   createPanel.hidden = false;
   if (emptyState) emptyState.hidden = true;
   if (eventsList) eventsList.hidden = true;
@@ -128,32 +145,82 @@ function wixParentOrigin() {
   return 'https://www.jouerpourdebon.ca';
 }
 
-function initBridge() {
-  window.addEventListener('message', receiveWixMessage);
+function postToWix(type, extra = {}) {
   const parentOrigin = wixParentOrigin();
-  if (!parentOrigin) return;
-
+  if (!parentOrigin) return false;
   window.parent.postMessage({
     source: 'jpdb-organizer',
-    type: MESSAGE_TYPES.ready
+    type,
+    ...extra
   }, parentOrigin);
+  return true;
+}
 
-  requestOrganizerEvents();
+function initBridge() {
+  window.addEventListener('message', receiveWixMessage);
+  if (!wixParentOrigin()) return;
+
+  postToWix(MESSAGE_TYPES.authRequest);
+
+  setTimeout(() => {
+    if (wixAuth.received) return;
+    if (formMessage) {
+      formMessage.textContent = language === 'fr'
+        ? 'Impossible de confirmer votre accès organisateur avec Wix.'
+        : 'Unable to confirm your organizer access with Wix.';
+    }
+  }, 7000);
 }
 
 function requestOrganizerEvents() {
-  const parentOrigin = wixParentOrigin();
-  if (!parentOrigin) return;
-  window.parent.postMessage({
-    source: 'jpdb-organizer',
-    type: MESSAGE_TYPES.requestEvents
-  }, parentOrigin);
+  if (!wixAuth.isOrganisateur) return;
+  postToWix(MESSAGE_TYPES.requestEvents);
 }
 
 function receiveWixMessage(event) {
   if (event.source !== window.parent || !ALLOWED_WIX_ORIGINS.has(event.origin)) return;
   const message = event.data;
   if (!message || message.source !== 'jpdb-wix') return;
+
+  if (message.type === MESSAGE_TYPES.auth) {
+    const roles = Array.isArray(message.roles)
+      ? message.roles.map((role) => String(role || '').trim()).filter(Boolean)
+      : [];
+    const normalized = roles.map((role) => role.toLocaleLowerCase('fr-CA'));
+    const roleSaysOrganizer = normalized.includes('organisateur') || normalized.includes('admin');
+
+    wixAuth = {
+      received: true,
+      loggedIn: message.loggedIn === true,
+      isOrganisateur: message.isOrganisateur === true && roleSaysOrganizer,
+      memberId: String(message.memberId || ''),
+      roles
+    };
+
+    setOrganizerControlsEnabled(wixAuth.isOrganisateur);
+
+    if (!wixAuth.loggedIn) {
+      if (formMessage) formMessage.textContent = language === 'fr'
+        ? 'Connectez-vous à Wix pour accéder à l’espace organisateur.'
+        : 'Log in to Wix to access the organizer space.';
+      return;
+    }
+
+    if (!wixAuth.isOrganisateur) {
+      const detected = roles.length ? roles.join(', ') : (language === 'fr' ? 'aucun rôle détecté' : 'no role detected');
+      if (formMessage) formMessage.textContent = language === 'fr'
+        ? `Accès organisateur requis. Rôles Wix détectés : ${detected}`
+        : `Organizer access required. Wix roles detected: ${detected}`;
+      return;
+    }
+
+    if (formMessage) formMessage.textContent = language === 'fr'
+      ? `Accès organisateur confirmé (${roles.join(', ')}).`
+      : `Organizer access confirmed (${roles.join(', ')}).`;
+
+    postToWix(MESSAGE_TYPES.ready);
+    return;
+  }
 
   if (message.type === MESSAGE_TYPES.events) {
     organizerEvents = Array.isArray(message.payload?.events) ? message.payload.events : [];
@@ -237,6 +304,12 @@ function formatEventDate(value) {
 }
 
 function handleDraft() {
+  if (!wixAuth.isOrganisateur) {
+    if (formMessage) formMessage.textContent = language === 'fr'
+      ? 'Accès organisateur requis.'
+      : 'Organizer access required.';
+    return;
+  }
   if (!eventForm.reportValidity()) return;
   const parentOrigin = wixParentOrigin();
   if (!parentOrigin) {
@@ -264,19 +337,14 @@ function handleDraft() {
   }, 25000);
 
   pendingSave = { id: requestId, timer };
-  window.parent.postMessage({
-    source: 'jpdb-organizer',
-    type: MESSAGE_TYPES.saveDraft,
-    requestId,
-    payload
-  }, parentOrigin);
+  postToWix(MESSAGE_TYPES.saveDraft, { requestId, payload });
 }
 
 function clearPendingSave() {
   if (pendingSave?.timer) clearTimeout(pendingSave.timer);
   pendingSave = null;
-  if (saveDraftBtn) saveDraftBtn.disabled = false;
-  if (publishBtn) publishBtn.disabled = false;
+  if (saveDraftBtn) saveDraftBtn.disabled = !wixAuth.isOrganisateur;
+  if (publishBtn) publishBtn.disabled = !wixAuth.isOrganisateur;
 }
 
 function handleSubmit(event) {
