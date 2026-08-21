@@ -1,0 +1,63 @@
+name: Patch organizer save and publish buttons
+on:
+  pull_request:
+    branches: [feature/organizer-frontend]
+permissions:
+  contents: write
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: fix/organizer-save-publish-buttons
+          fetch-depth: 0
+      - name: Patch organizer UI
+        shell: python
+        run: |
+          from pathlib import Path
+          import re
+
+          app = Path('app.js')
+          text = app.read_text(encoding='utf-8')
+
+          old = """  if (message.type === MESSAGE_TYPES.draftSaved) {\n    if (pendingSave && message.requestId !== pendingSave.id) return;\n    clearPendingSave();"""
+          new = """  if (message.type === MESSAGE_TYPES.draftSaved) {\n    if (pendingSave && message.requestId !== pendingSave.id) return;\n    const saveMode = pendingSave?.mode || 'draft';\n    clearPendingSave();"""
+          if old not in text: raise SystemExit('draftSaved prelude not found')
+          text = text.replace(old, new, 1)
+
+          old = """    if (formMessage) formMessage.textContent = copy[language].saved;"""
+          new = """    if (formMessage) formMessage.textContent = saveMode === 'published'\n      ? (language === 'fr' ? 'Événement publié.' : 'Event published.')\n      : copy[language].saved;"""
+          if old not in text: raise SystemExit('saved message not found')
+          text = text.replace(old, new, 1)
+
+          pattern = re.compile(r"function handleDraft\(\) \{.*?\n\}\n\nfunction clearPendingSave", re.S)
+          replacement = """function handleSave(mode = 'draft') {\n  if (!wixAuth.isOrganisateur) {\n    if (formMessage) formMessage.textContent = language === 'fr'\n      ? 'Accès organisateur requis.'\n      : 'Organizer access required.';\n    return;\n  }\n  if (!eventForm.reportValidity()) return;\n  if (!wixParentOrigin()) {\n    if (formMessage) formMessage.textContent = copy[language].wixOnly;\n    return;\n  }\n  if (pendingSave) return;\n\n  const requestId = typeof crypto?.randomUUID === 'function'\n    ? crypto.randomUUID()\n    : `${Date.now()}-${Math.random().toString(36).slice(2)}`;\n\n  const payload = getFormData();\n  if (mode === 'published') {\n    payload.visibility = 'published';\n    payload.status = payload.status === 'open_for_registration' ? 'open_for_registration' : 'scheduled';\n  } else {\n    payload.status = 'draft';\n    payload.visibility = 'draft';\n  }\n\n  if (saveDraftBtn) saveDraftBtn.disabled = true;\n  if (publishBtn) publishBtn.disabled = true;\n  if (formMessage) formMessage.textContent = mode === 'published'\n    ? (language === 'fr' ? 'Publication de l’événement…' : 'Publishing event…')\n    : copy[language].saving;\n\n  const timer = setTimeout(() => {\n    if (!pendingSave || pendingSave.id !== requestId) return;\n    clearPendingSave();\n    if (formMessage) formMessage.textContent = mode === 'published'\n      ? (language === 'fr' ? 'Impossible de publier l’événement.' : 'Unable to publish the event.')\n      : copy[language].saveError;\n  }, 25000);\n\n  pendingSave = { id: requestId, timer, mode };\n  postToWix(MESSAGE_TYPES.saveDraft, { requestId, payload });\n}\n\nfunction handleDraft() {\n  handleSave('draft');\n}\n\nfunction clearPendingSave"""
+          text, count = pattern.subn(replacement, text, count=1)
+          if count != 1: raise SystemExit(f'handleDraft block replacement count={count}')
+
+          old = """function handleSubmit(event) {\n  event.preventDefault();\n  formMessage.textContent = language === 'fr'\n    ? 'La publication sera activée après validation du flux brouillon.'\n    : 'Publishing will be enabled after the draft flow is validated.';\n}"""
+          new = """function handleSubmit(event) {\n  event.preventDefault();\n  handleSave('published');\n}"""
+          if old not in text: raise SystemExit('submit placeholder not found')
+          text = text.replace(old, new, 1)
+          app.write_text(text, encoding='utf-8')
+
+          bridge = Path('wix-sandbox-bridge.js')
+          b = bridge.read_text(encoding='utf-8')
+          old = """  window.addEventListener('message', (event) => {\n    if (event.source !== window.parent) return;\n    const message = event.data;\n    if (!message || message.source !== 'jpdb-wix') return;\n    if (message.type !== MESSAGE_TYPES.auth) return;\n    applyAuthMessage(message);\n  });"""
+          new = """  window.addEventListener('message', (event) => {\n    if (event.source !== window.parent) return;\n    const message = event.data;\n    if (!message || message.source !== 'jpdb-wix') return;\n\n    // Trust only messages from the actual Wix parent window. Add its sandbox\n    // origin so the app's existing receiver can process auth, list, save, and\n    // error replies instead of silently dropping non-auth responses.\n    if (event.origin) ALLOWED_WIX_ORIGINS.add(event.origin);\n    receiveWixMessage(event);\n  });"""
+          if old not in b: raise SystemExit('sandbox message listener not found')
+          b = b.replace(old, new, 1)
+          b = b.replace("Organizer UI v11", "Organizer UI v12", 1)
+          bridge.write_text(b, encoding='utf-8')
+
+          version = Path('deployment-version.txt')
+          version.write_text('organizer-ui-version=12\n', encoding='utf-8')
+      - name: Commit patch
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -- app.js wix-sandbox-bridge.js deployment-version.txt
+          git diff --cached --quiet && exit 0
+          git commit -m "fix: wire organizer save and publish buttons"
+          git push origin HEAD:fix/organizer-save-publish-buttons
