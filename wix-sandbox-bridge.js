@@ -7,14 +7,22 @@
   // Creating/filling the form is harmless UI. Keep that available even when the
   // Wix role handshake is delayed or fails. Saving/publishing remains protected
   // by Wix page code + authenticated backend web methods.
-  if (createEventBtn) createEventBtn.disabled = false;
-  createEventBtn?.addEventListener('click', () => {
+  setOrganizerControlsEnabled = function setOrganizerControlsEnabledWithoutBlockingCreate(enabled) {
+    if (createEventBtn) createEventBtn.disabled = false;
+    if (saveDraftBtn) saveDraftBtn.disabled = !enabled;
+    if (publishBtn) publishBtn.disabled = !enabled;
+  };
+
+  openCreatePanel = function openCreatePanelWithoutAuthGate() {
     if (!createPanel) return;
     createPanel.hidden = false;
     if (emptyState) emptyState.hidden = true;
     if (eventsList) eventsList.hidden = true;
     createPanel.scrollIntoView({ behavior: 'smooth', block: 'start' });
-  });
+  };
+
+  // Apply the UI rule immediately; later auth replies can only affect Save/Publish.
+  setOrganizerControlsEnabled(wixAuth.isOrganisateur === true);
 
   // Override the transport only. All privileged operations are still handled by
   // Wix page code + authenticated backend web methods.
@@ -44,9 +52,7 @@
 
     // Never block opening/filling the form because of auth state. Only actions
     // that mutate organizer data are gated.
-    if (createEventBtn) createEventBtn.disabled = false;
-    if (saveDraftBtn) saveDraftBtn.disabled = !wixAuth.isOrganisateur;
-    if (publishBtn) publishBtn.disabled = !wixAuth.isOrganisateur;
+    setOrganizerControlsEnabled(wixAuth.isOrganisateur);
 
     if (!wixAuth.loggedIn) {
       if (formMessage) formMessage.textContent = language === 'fr'
