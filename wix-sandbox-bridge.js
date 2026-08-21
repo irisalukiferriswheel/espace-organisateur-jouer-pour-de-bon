@@ -4,6 +4,14 @@
 (function installWixSandboxBridge() {
   if (window.parent === window) return;
 
+  // Visible build marker: this lets us verify which organizer embed Wix is
+  // actually serving, instead of guessing about cached/deployed branches.
+  const buildMarker = document.createElement('div');
+  buildMarker.id = 'jpdbOrganizerBuildMarker';
+  buildMarker.textContent = 'Organizer UI v11';
+  buildMarker.style.cssText = 'position:fixed;right:8px;bottom:8px;z-index:99999;font:11px/1.2 sans-serif;padding:4px 6px;border-radius:4px;background:#111;color:#fff;opacity:.72;pointer-events:none';
+  document.body.appendChild(buildMarker);
+
   // Creating/filling the form is harmless UI. Keep that available even when the
   // Wix role handshake is delayed or fails. Saving/publishing remains protected
   // by Wix page code + authenticated backend web methods.
@@ -20,6 +28,19 @@
     if (eventsList) eventsList.hidden = true;
     createPanel.scrollIntoView({ behavior: 'smooth', block: 'start' });
   };
+
+  // Guard against any older auth callback or cached handler toggling Create back
+  // to disabled. Only mutating controls are authorization-gated.
+  const keepCreateAvailable = () => {
+    if (createEventBtn?.disabled) createEventBtn.disabled = false;
+  };
+  keepCreateAvailable();
+  const createGuard = new MutationObserver(keepCreateAvailable);
+  if (createEventBtn) createGuard.observe(createEventBtn, { attributes: true, attributeFilter: ['disabled'] });
+
+  // The original app.js registered its click handler before this script loaded.
+  // Add a second handler so opening the form does not depend on Wix auth state.
+  createEventBtn?.addEventListener('click', openCreatePanelWithoutAuthGate);
 
   // Apply the UI rule immediately; later auth replies can only affect Save/Publish.
   setOrganizerControlsEnabled(wixAuth.isOrganisateur === true);
