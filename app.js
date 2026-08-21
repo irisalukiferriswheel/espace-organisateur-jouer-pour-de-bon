@@ -230,11 +230,14 @@ function receiveWixMessage(event) {
 
   if (message.type === MESSAGE_TYPES.draftSaved) {
     if (pendingSave && message.requestId !== pendingSave.id) return;
+    const saveMode = pendingSave?.mode || 'draft';
     clearPendingSave();
     if (message.payload?.event) {
       organizerEvents = [message.payload.event, ...organizerEvents.filter((eventItem) => eventItem.id !== message.payload.event.id)];
     }
-    if (formMessage) formMessage.textContent = copy[language].saved;
+    if (formMessage) formMessage.textContent = saveMode === 'published'
+      ? (language === 'fr' ? 'Événement publié.' : 'Event published.')
+      : copy[language].saved;
     eventForm?.reset();
     updatePreview();
     createPanel.hidden = true;
@@ -303,7 +306,7 @@ function formatEventDate(value) {
   }).format(date);
 }
 
-function handleDraft() {
+function handleSave(mode = 'draft') {
   if (!wixAuth.isOrganisateur) {
     if (formMessage) formMessage.textContent = language === 'fr'
       ? 'Accès organisateur requis.'
@@ -311,9 +314,8 @@ function handleDraft() {
     return;
   }
   if (!eventForm.reportValidity()) return;
-  const parentOrigin = wixParentOrigin();
-  if (!parentOrigin) {
-    formMessage.textContent = copy[language].wixOnly;
+  if (!wixParentOrigin()) {
+    if (formMessage) formMessage.textContent = copy[language].wixOnly;
     return;
   }
   if (pendingSave) return;
@@ -323,21 +325,34 @@ function handleDraft() {
     : `${Date.now()}-${Math.random().toString(36).slice(2)}`;
 
   const payload = getFormData();
-  payload.status = 'draft';
-  payload.visibility = 'draft';
+  if (mode === 'published') {
+    payload.visibility = 'published';
+    payload.status = payload.status === 'open_for_registration' ? 'open_for_registration' : 'scheduled';
+  } else {
+    payload.status = 'draft';
+    payload.visibility = 'draft';
+  }
 
-  saveDraftBtn.disabled = true;
+  if (saveDraftBtn) saveDraftBtn.disabled = true;
   if (publishBtn) publishBtn.disabled = true;
-  formMessage.textContent = copy[language].saving;
+  if (formMessage) formMessage.textContent = mode === 'published'
+    ? (language === 'fr' ? 'Publication de l’événement…' : 'Publishing event…')
+    : copy[language].saving;
 
   const timer = setTimeout(() => {
     if (!pendingSave || pendingSave.id !== requestId) return;
     clearPendingSave();
-    formMessage.textContent = copy[language].saveError;
+    if (formMessage) formMessage.textContent = mode === 'published'
+      ? (language === 'fr' ? 'Impossible de publier l’événement.' : 'Unable to publish the event.')
+      : copy[language].saveError;
   }, 25000);
 
-  pendingSave = { id: requestId, timer };
+  pendingSave = { id: requestId, timer, mode };
   postToWix(MESSAGE_TYPES.saveDraft, { requestId, payload });
+}
+
+function handleDraft() {
+  handleSave('draft');
 }
 
 function clearPendingSave() {
@@ -349,9 +364,7 @@ function clearPendingSave() {
 
 function handleSubmit(event) {
   event.preventDefault();
-  formMessage.textContent = language === 'fr'
-    ? 'La publication sera activée après validation du flux brouillon.'
-    : 'Publishing will be enabled after the draft flow is validated.';
+  handleSave('published');
 }
 
 function escapeHtml(value) {
