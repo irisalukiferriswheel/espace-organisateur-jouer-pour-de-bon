@@ -1,1 +1,1 @@
-organizer-ui-version=7
+organizer-ui-version=8
