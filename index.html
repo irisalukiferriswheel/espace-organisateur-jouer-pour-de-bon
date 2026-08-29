@@ -113,10 +113,21 @@
           <fieldset>
             <legend data-i18n="causeLegend">4. Cause soutenue</legend>
             <div class="form-grid">
-              <label class="full-width"><span data-i18n="cause">Cause</span><input name="cause" type="text" required data-placeholder-fr="Ex. Amis de la terre" data-placeholder-en="Ex. Friends of the Earth" placeholder="Ex. Amis de la terre" /></label>
+              <label class="full-width"><span data-i18n="causeName">Nom de la cause</span>
+                <input name="causeName" type="text" required maxlength="160" data-placeholder-fr="Ex. Les Amis de la Terre" data-placeholder-en="Ex. Friends of the Earth" placeholder="Ex. Les Amis de la Terre" />
+              </label>
+              <label class="full-width"><span data-i18n="causeDescription">Description de la cause</span>
+                <textarea name="causeDescription" rows="4" required maxlength="2000" data-placeholder-fr="Expliquez la mission de l’organisme et ce que la collecte permettra d’accomplir." data-placeholder-en="Explain the organization’s mission and what the fundraiser will help accomplish." placeholder="Expliquez la mission de l’organisme et ce que la collecte permettra d’accomplir."></textarea>
+              </label>
+              <label><span data-i18n="causeGoalAmount">Objectif de financement</span>
+                <input name="causeGoalAmount" type="number" min="0.01" step="0.01" required placeholder="1000.00" />
+              </label>
+              <label><span data-i18n="causeGoalCurrency">Devise de l’objectif</span>
+                <select name="causeGoalCurrency"><option value="CAD">CAD</option><option value="USD">USD</option><option value="EUR">EUR</option></select>
+              </label>
               <div class="info-box full-width">
                 <strong data-i18n="pfgRule">Règle Jouer Pour de Bon</strong>
-                <p data-i18n="pfgRuleBody">La logique de répartition des fonds sera appliquée et vérifiée côté backend. L’organisateur ne pourra pas modifier les règles financières de la plateforme.</p>
+                <p data-i18n="pfgRuleBody">La moitié (50 %) de chaque frais d’inscription confirmé va à cette cause. L’autre moitié (50 %) va aux joueurs gagnants. Les contributions à la cause sont calculées automatiquement; l’organisateur ne peut pas modifier cette répartition.</p>
               </div>
             </div>
           </fieldset>
