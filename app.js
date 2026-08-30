@@ -6,6 +6,7 @@ const eventForm = document.querySelector('#eventForm');
 const saveDraftBtn = document.querySelector('#saveDraftBtn');
 const publishBtn = document.querySelector('#publishBtn');
 const formMessage = document.querySelector('#formMessage');
+const errorSummary = document.querySelector('#errorSummary');
 const previewTitle = document.querySelector('#previewTitle');
 const previewSummary = document.querySelector('#previewSummary');
 const langFrBtn = document.querySelector('#langFrBtn');
@@ -36,10 +37,48 @@ const copy = {
   }
 };
 
+Object.assign(copy.fr, {
+  feeHint: 'Le prix doit pouvoir être partagé exactement en deux au cent près.',
+  causeDescriptionFr: 'Description de la cause — français',
+  causeDescriptionEn: 'Description de la cause — anglais',
+  approvalTitle: 'Approbation de la cause requise',
+  approvalBody: 'Cette proposition sera mise en attente. Un administrateur vérifiera la cause et la reliera à une cause existante en cas de doublon avant son affichage public.',
+  validationTitle: 'Veuillez corriger les champs indiqués.',
+  causeNameError: 'Le nom de la cause doit contenir au moins 3 caractères.',
+  causeDescriptionError: 'Ajoutez une description française ou anglaise d’au moins 20 caractères.',
+  amountError: 'Saisissez un montant positif avec au plus deux décimales.',
+  feeError: 'Le prix doit être positif et divisible également entre la cause et les gagnants, au cent près.',
+  currencyError: 'Choisissez une devise prise en charge.',
+  currencyMismatchError: 'La devise de l’événement doit correspondre à celle de la cause tant que le backend ne gère pas les taux de change.',
+  endTimeError: 'L’heure de fin doit suivre l’heure de début.',
+  deadlineError: 'La date limite d’inscription doit précéder le début de l’événement.',
+  causePendingSaved: 'Événement enregistré. La cause est en attente d’approbation administrative et ne sera pas publique avant son approbation.',
+  causeNotConfirmed: 'Le backend a répondu sans confirmer l’enregistrement de la proposition de cause. Le formulaire a été conservé; aucune réussite complète n’est déclarée.'
+});
+
+Object.assign(copy.en, {
+  feeHint: 'The fee must split exactly in half to the nearest cent.',
+  causeDescriptionFr: 'Cause description — French',
+  causeDescriptionEn: 'Cause description — English',
+  approvalTitle: 'Cause approval required',
+  approvalBody: 'This proposal will be placed in review. An administrator will verify it and link duplicates to an existing cause before it appears publicly.',
+  validationTitle: 'Please correct the indicated fields.',
+  causeNameError: 'The cause name must contain at least 3 characters.',
+  causeDescriptionError: 'Add a French or English description of at least 20 characters.',
+  amountError: 'Enter a positive amount with no more than two decimal places.',
+  feeError: 'The fee must be positive and split equally between the cause and winners to the nearest cent.',
+  currencyError: 'Choose a supported currency.',
+  currencyMismatchError: 'The event currency must match the cause currency until the backend supports exchange rates.',
+  endTimeError: 'The end time must be after the start time.',
+  deadlineError: 'The registration deadline must be before the event starts.',
+  causePendingSaved: 'Event saved. The cause is pending administrator approval and will not be public until approved.',
+  causeNotConfirmed: 'The backend responded without confirming that the cause proposal was saved. The form was preserved; full success is not being reported.'
+});
+
 const requestedLanguage = new URLSearchParams(window.location.search).get('lang');
 let language = requestedLanguage === 'en' || requestedLanguage === 'fr'
   ? requestedLanguage
-  : (localStorage.getItem('jpdb-language') === 'en' ? 'en' : 'fr');
+  : (readStoredLanguage() === 'en' ? 'en' : 'fr');
 let organizerEvents = [];
 let pendingSave = null;
 let eventsList = null;
@@ -89,15 +128,19 @@ function setOrganizerControlsEnabled(enabled) {
   if (publishBtn) publishBtn.disabled = !enabled;
 }
 
-function setLanguage(nextLanguage) {
+function readStoredLanguage() {
+  try { return localStorage.getItem('jpdb-language'); } catch { return null; }
+}
+
+function setLanguage(nextLanguage, options = {}) {
   language = copy[nextLanguage] ? nextLanguage : 'fr';
-  localStorage.setItem('jpdb-language', language);
+  try { localStorage.setItem('jpdb-language', language); } catch {}
   const languageUrl = new URL(window.location.href);
   languageUrl.searchParams.set('lang', language);
   window.history.replaceState({}, '', languageUrl);
   document.documentElement.lang = language;
 
-  if (window.parent !== window) {
+  if (options.notifyHost !== false && window.parent !== window) {
     window.parent.postMessage({ type: 'JPDB_LANGUAGE_CHANGED', language }, wixParentOrigin() || '*');
   }
   document.title = language === 'fr' ? 'Espace organisateur — Jouer Pour de Bon' : 'Organizer space — Playing For Good';
@@ -136,6 +179,54 @@ function closeCreatePanel() {
 
 function getFormData() {
   return Object.fromEntries(new FormData(eventForm).entries());
+}
+
+function clearValidationErrors() {
+  eventForm?.querySelectorAll('.field-invalid').forEach((field) => {
+    field.classList.remove('field-invalid');
+    field.removeAttribute('aria-invalid');
+  });
+  if (errorSummary) {
+    errorSummary.hidden = true;
+    errorSummary.textContent = '';
+  }
+}
+
+function translatedValidationMessage(code) {
+  if (code === 'causeName') return copy[language].causeNameError;
+  if (code === 'causeDescription' || code === 'causeDescriptionShort') return copy[language].causeDescriptionError;
+  if (code === 'feePositive' || code === 'feeEvenSplit') return copy[language].feeError;
+  if (code === 'goalPositive') return copy[language].amountError;
+  if (code === 'currency') return copy[language].currencyError;
+  if (code === 'currencyMismatch') return copy[language].currencyMismatchError;
+  if (code === 'endAfterStart') return copy[language].endTimeError;
+  if (code === 'deadlineBeforeStart') return copy[language].deadlineError;
+  return copy[language].validationTitle;
+}
+
+function validateForm(data) {
+  clearValidationErrors();
+  const nativeValid = eventForm.checkValidity();
+  const result = window.JPDBCauseForm.validate(data);
+  if (nativeValid && result.valid) return true;
+
+  Object.entries(result.errors).forEach(([name]) => {
+    const field = eventForm.elements.namedItem(name);
+    field?.classList.add('field-invalid');
+    field?.setAttribute('aria-invalid', 'true');
+  });
+
+  const firstNativeInvalid = eventForm.querySelector(':invalid');
+  firstNativeInvalid?.classList.add('field-invalid');
+  firstNativeInvalid?.setAttribute('aria-invalid', 'true');
+  const messages = [...new Set(Object.values(result.errors).map(translatedValidationMessage))];
+  if (!nativeValid && messages.length === 0) messages.push(copy[language].validationTitle);
+  if (errorSummary) {
+    errorSummary.hidden = false;
+    errorSummary.innerHTML = `<strong>${escapeHtml(copy[language].validationTitle)}</strong>${messages.map(escapeHtml).join('<br>')}`;
+    errorSummary.focus();
+  }
+  return false;
 }
 
 function updatePreview() {
@@ -192,7 +283,7 @@ function receiveWixMessage(event) {
   const message = event.data;
 
   if (message?.type === 'JPDB_LANGUAGE' && (message.language === 'fr' || message.language === 'en')) {
-    setLanguage(message.language);
+    setLanguage(message.language, { notifyHost: false });
     return;
   }
 
@@ -235,6 +326,7 @@ function receiveWixMessage(event) {
       : `Organizer access confirmed (${roles.join(', ')}).`;
 
     postToWix(MESSAGE_TYPES.ready);
+    requestOrganizerEvents();
     return;
   }
 
@@ -246,14 +338,21 @@ function receiveWixMessage(event) {
 
   if (message.type === MESSAGE_TYPES.draftSaved) {
     if (pendingSave && message.requestId !== pendingSave.id) return;
+    if (!window.JPDBCauseForm.hasConfirmedCauseSubmission(message.payload)) {
+      clearPendingSave();
+      if (formMessage) formMessage.textContent = copy[language].causeNotConfirmed;
+      return;
+    }
     const saveMode = pendingSave?.mode || 'draft';
     clearPendingSave();
     if (message.payload?.event) {
       organizerEvents = [message.payload.event, ...organizerEvents.filter((eventItem) => eventItem.id !== message.payload.event.id)];
     }
-    if (formMessage) formMessage.textContent = saveMode === 'published'
-      ? (language === 'fr' ? 'Événement publié.' : 'Event published.')
-      : copy[language].saved;
+    if (formMessage) formMessage.textContent = message.payload.causeSubmission.status === 'pending'
+      ? copy[language].causePendingSaved
+      : (saveMode === 'published'
+        ? (language === 'fr' ? 'Événement publié.' : 'Event published.')
+        : copy[language].saved);
     eventForm?.reset();
     updatePreview();
     createPanel.hidden = true;
@@ -329,7 +428,8 @@ function handleSave(mode = 'draft') {
       : 'Organizer access required.';
     return;
   }
-  if (!eventForm.reportValidity()) return;
+  const rawPayload = getFormData();
+  if (!validateForm(rawPayload)) return;
   if (!wixParentOrigin()) {
     if (formMessage) formMessage.textContent = copy[language].wixOnly;
     return;
@@ -340,7 +440,13 @@ function handleSave(mode = 'draft') {
     ? crypto.randomUUID()
     : `${Date.now()}-${Math.random().toString(36).slice(2)}`;
 
-  const payload = getFormData();
+  const causeSubmission = window.JPDBCauseForm.buildCauseSubmission(rawPayload, language);
+  const payload = {
+    ...rawPayload,
+    ...causeSubmission,
+    causeSubmission,
+    submissionLocale: language
+  };
   if (mode === 'published') {
     payload.visibility = 'published';
     payload.status = payload.status === 'open_for_registration' ? 'open_for_registration' : 'scheduled';

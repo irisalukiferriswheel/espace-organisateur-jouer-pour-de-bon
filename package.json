@@ -1,0 +1,8 @@
+{
+  "name": "jpdb-organizer-embed",
+  "private": true,
+  "scripts": {
+    "test": "node --test",
+    "check": "node --check app.js && node --check cause-form.js && node --test"
+  }
+}
