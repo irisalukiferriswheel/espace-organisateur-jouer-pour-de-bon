@@ -267,9 +267,25 @@ input:focus, select:focus, textarea:focus {
 .info-box p, .preview-card p { margin: 6px 0 0; color: var(--pfg-muted); line-height: 1.55; }
 .form-actions { display: flex; justify-content: flex-end; gap: 10px; flex-wrap: wrap; }
 .form-message { min-height: 1.4em; margin: 0; color: var(--pfg-muted); }
+.jobs-editor { display: grid; gap: 16px; }
+.job-editor {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+  padding: 18px;
+  border: 1px solid var(--pfg-line);
+  border-left: 5px solid #d06f45;
+  border-radius: 13px;
+  background: #fff;
+}
+.job-editor .remove-job {
+  grid-column: 1 / -1;
+  justify-self: start;
+  color: #8a352c;
+}
 
 @media (max-width: 760px) {
-  .form-grid, .events-list { grid-template-columns: 1fr; }
+  .form-grid, .events-list, .job-editor { grid-template-columns: 1fr; }
   .full-width { grid-column: auto; }
 }
 

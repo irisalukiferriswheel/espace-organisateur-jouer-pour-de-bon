@@ -10,6 +10,8 @@ const previewTitle = document.querySelector('#previewTitle');
 const previewSummary = document.querySelector('#previewSummary');
 const langFrBtn = document.querySelector('#langFrBtn');
 const langEnBtn = document.querySelector('#langEnBtn');
+const jobsList = document.querySelector('#jobsList');
+const addJobBtn = document.querySelector('#addJobBtn');
 
 const ALLOWED_WIX_ORIGINS = new Set([
   'https://www.jouerpourdebon.ca',
@@ -29,9 +31,31 @@ const MESSAGE_TYPES = Object.freeze({
 
 const copy = {
   fr: {
+    jobsLegend: '5. Emplois liés à l’événement',
+    jobsInfoTitle: 'Emplois rémunérés',
+    jobsInfoBody: 'Ajoutez seulement les emplois nécessaires à cet événement. Chaque offre devra être approuvée par un administrateur avant d’apparaître sur la page Emplois.',
+    addJob: '+ Ajouter un emploi',
+    jobName: 'Nom de l’emploi',
+    jobDescription: 'Description de l’emploi',
+    jobSalary: 'Salaire',
+    jobCurrency: 'Devise du salaire',
+    removeJob: 'Retirer cet emploi',
+    contactLegendWithJobs: '6. Organisation et contact',
+    publicationLegendWithJobs: '7. Publication',
     brand: 'Jouer Pour de Bon', heroTitle: 'Espace organisateur', heroIntro: 'Créez et gérez vos événements. Les brouillons sont privés jusqu’à leur publication.', createEvent: '+ Créer un événement', dashboard: 'Tableau de bord', myEvents: 'Mes événements', securePrototype: 'Accès organisateur', noEvents: 'Aucun événement pour le moment', noEventsBody: 'Vos brouillons et événements publiés apparaîtront ici.', newEvent: 'Nouvel événement', createEventTitle: 'Créer un événement', close: 'Fermer', generalLegend: '1. Informations générales', eventName: 'Nom de l’événement', activity: 'Jeu / activité', format: 'Format', inPerson: 'Présentiel', online: 'En ligne', hybrid: 'Hybride', description: 'Description', imageUrl: 'Image de l’événement — URL (optionnel)', datePlaceLegend: '2. Date et lieu', date: 'Date', timezone: 'Fuseau horaire', startTime: 'Heure de début', endTime: 'Heure de fin', city: 'Ville', region: 'Province / région', venue: 'Lieu / adresse', participationLegend: '3. Participation', fee: 'Prix d’inscription', currency: 'Devise', capacity: 'Nombre maximum de joueurs', deadline: 'Date limite d’inscription', minimumAge: 'Âge minimum', skillLevel: 'Niveau recommandé', allLevels: 'Tous niveaux', beginner: 'Débutant', intermediate: 'Intermédiaire', advanced: 'Avancé', causeLegend: '4. Cause soutenue', causeName: 'Nom de la cause', causeDescription: 'Description de la cause', causeGoalAmount: 'Objectif de financement', causeGoalCurrency: 'Devise de l’objectif', pfgRule: 'Règle Jouer Pour de Bon', pfgRuleBody: 'La moitié (50 %) de chaque frais d’inscription confirmé va à cette cause. L’autre moitié (50 %) va aux joueurs gagnants. Les contributions sont calculées automatiquement; l’organisateur ne peut pas modifier cette répartition.', contactLegend: '5. Organisation et contact', contactLink: 'Lien de contact ou réseau social', organizer: 'Organisateur', organizerBody: 'L’identité de l’organisateur est déterminée automatiquement à partir du compte Wix connecté.', publicationLegend: '6. Publication', visibility: 'Visibilité', public: 'Public', unlisted: 'Non répertorié', initialStatus: 'Statut initial', draft: 'Brouillon', openRegistration: 'Ouvert aux inscriptions', preview: 'Aperçu', eventPreview: 'Votre événement', saveDraft: 'Enregistrer comme brouillon', publish: 'Publier l’événement', previewEmpty: 'Remplissez le nom, la ville et la date pour voir un résumé ici.', saving: 'Enregistrement du brouillon…', saved: 'Brouillon enregistré.', loadError: 'Impossible de charger vos événements.', saveError: 'Impossible d’enregistrer le brouillon.', wixOnly: 'Ouvrez cette page depuis votre espace organisateur sur Jouer Pour de Bon pour enregistrer un brouillon.', draftBadge: 'Brouillon', publishedBadge: 'Publié', participationMode: 'Mode de participation', participationNone: 'Information seulement', participationRsvp: 'RSVP simple', participationRegistration: 'Inscription', participationCompetition: 'Compétition', noCompetition: 'Aucune compétition liée', competitionLinked: 'Compétition liée'
   },
   en: {
+    jobsLegend: '5. Event jobs',
+    jobsInfoTitle: 'Paid jobs',
+    jobsInfoBody: 'Add only the jobs needed for this event. Every listing must be approved by an administrator before it appears on the Jobs page.',
+    addJob: '+ Add a job',
+    jobName: 'Job name',
+    jobDescription: 'Job description',
+    jobSalary: 'Salary',
+    jobCurrency: 'Salary currency',
+    removeJob: 'Remove this job',
+    contactLegendWithJobs: '6. Organization and contact',
+    publicationLegendWithJobs: '7. Publication',
     brand: 'Playing For Good', heroTitle: 'Organizer space', heroIntro: 'Create and manage your events. Drafts stay private until they are published.', createEvent: '+ Create an event', dashboard: 'Dashboard', myEvents: 'My events', securePrototype: 'Organizer access', noEvents: 'No events yet', noEventsBody: 'Your drafts and published events will appear here.', newEvent: 'New event', createEventTitle: 'Create an event', close: 'Close', generalLegend: '1. General information', eventName: 'Event name', activity: 'Game / activity', format: 'Format', inPerson: 'In person', online: 'Online', hybrid: 'Hybrid', description: 'Description', imageUrl: 'Event image — URL (optional)', datePlaceLegend: '2. Date and location', date: 'Date', timezone: 'Time zone', startTime: 'Start time', endTime: 'End time', city: 'City', region: 'Province / region', venue: 'Venue / address', participationLegend: '3. Participation', fee: 'Registration fee', currency: 'Currency', capacity: 'Maximum players', deadline: 'Registration deadline', minimumAge: 'Minimum age', skillLevel: 'Recommended level', allLevels: 'All levels', beginner: 'Beginner', intermediate: 'Intermediate', advanced: 'Advanced', causeLegend: '4. Supported cause', causeName: 'Cause name', causeDescription: 'Cause description', causeGoalAmount: 'Fundraising goal', causeGoalCurrency: 'Goal currency', pfgRule: 'Playing For Good rule', pfgRuleBody: 'Half (50%) of every confirmed registration fee goes to this cause. The other half (50%) goes to the winning players. Cause contributions are calculated automatically; organizers cannot change this split.', contactLegend: '5. Organization and contact', contactLink: 'Contact or social link', organizer: 'Organizer', organizerBody: 'The organizer identity is determined automatically from the logged-in Wix account.', publicationLegend: '6. Publication', visibility: 'Visibility', public: 'Public', unlisted: 'Unlisted', initialStatus: 'Initial status', draft: 'Draft', openRegistration: 'Open for registration', preview: 'Preview', eventPreview: 'Your event', saveDraft: 'Save as draft', publish: 'Publish event', previewEmpty: 'Fill in the name, city, and date to see a summary here.', saving: 'Saving draft…', saved: 'Draft saved.', loadError: 'Unable to load your events.', saveError: 'Unable to save the draft.', wixOnly: 'Open this page from your Playing For Good organizer space to save a draft.', draftBadge: 'Draft', publishedBadge: 'Published', participationMode: 'Participation mode', participationNone: 'Information only', participationRsvp: 'Simple RSVP', participationRegistration: 'Registration', participationCompetition: 'Competition', noCompetition: 'No competition linked', competitionLinked: 'Competition linked'
   }
 };
@@ -135,7 +159,47 @@ function closeCreatePanel() {
 }
 
 function getFormData() {
-  return Object.fromEntries(new FormData(eventForm).entries());
+  const data = Object.fromEntries(new FormData(eventForm).entries());
+  delete data.jobName;
+  delete data.jobDescription;
+  delete data.jobSalaryAmount;
+  delete data.jobSalaryCurrency;
+  data.jobs = collectJobs();
+  return data;
+}
+
+function collectJobs() {
+  if (!jobsList) return [];
+  return [...jobsList.querySelectorAll('.job-editor')].map((editor) => ({
+    name: editor.querySelector('[name="jobName"]')?.value.trim() || '',
+    description: editor.querySelector('[name="jobDescription"]')?.value.trim() || '',
+    salaryAmount: Number(editor.querySelector('[name="jobSalaryAmount"]')?.value || 0),
+    salaryCurrency: editor.querySelector('[name="jobSalaryCurrency"]')?.value || 'CAD'
+  })).filter((job) => job.name || job.description || job.salaryAmount);
+}
+
+function addJobEditor() {
+  if (!jobsList) return;
+  const editor = document.createElement('section');
+  editor.className = 'job-editor';
+  editor.innerHTML = `
+    <label class="full-width"><span data-i18n="jobName"></span>
+      <input name="jobName" type="text" required maxlength="160" />
+    </label>
+    <label class="full-width"><span data-i18n="jobDescription"></span>
+      <textarea name="jobDescription" rows="4" required maxlength="2000"></textarea>
+    </label>
+    <label><span data-i18n="jobSalary"></span>
+      <input name="jobSalaryAmount" type="number" min="0.01" step="0.01" required />
+    </label>
+    <label><span data-i18n="jobCurrency"></span>
+      <select name="jobSalaryCurrency"><option value="CAD">CAD</option><option value="USD">USD</option><option value="EUR">EUR</option></select>
+    </label>
+    <button class="text-button remove-job" type="button" data-i18n="removeJob"></button>`;
+  editor.querySelector('.remove-job')?.addEventListener('click', () => editor.remove());
+  jobsList.appendChild(editor);
+  setLanguage(language);
+  editor.querySelector('input')?.focus();
 }
 
 function updatePreview() {
@@ -255,6 +319,7 @@ function receiveWixMessage(event) {
       ? (language === 'fr' ? 'Événement publié.' : 'Event published.')
       : copy[language].saved;
     eventForm?.reset();
+    if (jobsList) jobsList.innerHTML = '';
     updatePreview();
     createPanel.hidden = true;
     renderEvents();
@@ -400,3 +465,4 @@ eventForm?.addEventListener('input', updatePreview);
 eventForm?.addEventListener('change', updatePreview);
 langFrBtn?.addEventListener('click', () => setLanguage('fr'));
 langEnBtn?.addEventListener('click', () => setLanguage('en'));
+addJobBtn?.addEventListener('click', addJobEditor);
