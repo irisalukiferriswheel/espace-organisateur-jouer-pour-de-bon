@@ -133,7 +133,19 @@
           </fieldset>
 
           <fieldset>
-            <legend data-i18n="contactLegend">5. Organisation et contact</legend>
+            <legend data-i18n="jobsLegend">5. Emplois liés à l’événement</legend>
+            <div class="form-grid">
+              <div class="info-box full-width">
+                <strong data-i18n="jobsInfoTitle">Emplois rémunérés</strong>
+                <p data-i18n="jobsInfoBody">Ajoutez seulement les emplois nécessaires à cet événement. Chaque offre devra être approuvée par un administrateur avant d’apparaître sur la page Emplois.</p>
+              </div>
+              <div id="jobsList" class="jobs-editor full-width" aria-live="polite"></div>
+              <button id="addJobBtn" class="secondary full-width" type="button" data-i18n="addJob">+ Ajouter un emploi</button>
+            </div>
+          </fieldset>
+
+          <fieldset>
+            <legend data-i18n="contactLegendWithJobs">6. Organisation et contact</legend>
             <div class="form-grid">
               <label class="full-width"><span data-i18n="contactLink">Lien de contact ou réseau social</span><input name="contactUrl" type="url" placeholder="https://…" /></label>
               <div class="info-box full-width">
@@ -144,7 +156,7 @@
           </fieldset>
 
           <fieldset>
-            <legend data-i18n="publicationLegend">6. Publication</legend>
+            <legend data-i18n="publicationLegendWithJobs">7. Publication</legend>
             <div class="form-grid">
               <label><span data-i18n="visibility">Visibilité</span>
                 <select name="visibility"><option value="public" data-i18n="public">Public</option><option value="unlisted" data-i18n="unlisted">Non répertorié</option></select>
