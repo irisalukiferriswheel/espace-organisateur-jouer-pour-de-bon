@@ -30,6 +30,10 @@ body {
 }
 button, input, select, textarea { font: inherit; }
 button { cursor: pointer; }
+button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-visible, [tabindex="-1"]:focus-visible {
+  outline: 3px solid #2c79b9;
+  outline-offset: 2px;
+}
 
 .shell {
   width: min(1180px, calc(100% - 32px));
@@ -236,6 +240,7 @@ label {
   letter-spacing: .04em;
   text-transform: uppercase;
 }
+label small { color: var(--pfg-muted); font-size: .78rem; font-weight: 500; letter-spacing: normal; line-height: 1.4; text-transform: none; }
 .full-width { grid-column: 1 / -1; }
 input, select, textarea {
   width: 100%;
@@ -256,6 +261,25 @@ input:focus, select:focus, textarea:focus {
   border-color: #8ab3d5;
   box-shadow: 0 0 0 4px rgba(23,71,116,.08);
 }
+.field-invalid { border-color: #b42318; box-shadow: 0 0 0 3px rgba(180,35,24,.09); }
+.error-summary {
+  padding: 14px 16px;
+  border: 1px solid #f0aaa4;
+  border-radius: 12px;
+  color: #7a271a;
+  background: #fff3f2;
+  line-height: 1.5;
+}
+.error-summary strong { display: block; margin-bottom: 4px; }
+.approval-box {
+  margin: 0 0 14px;
+  padding: 14px 15px;
+  border: 1px solid #f1d38b;
+  border-radius: 13px;
+  color: #6a4b08;
+  background: #fffaeb;
+}
+.approval-box p { margin: 6px 0 0; line-height: 1.55; }
 .info-box,
 .preview-card {
   padding: 15px;
