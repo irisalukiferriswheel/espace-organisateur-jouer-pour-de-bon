@@ -36,7 +36,10 @@ const copy = {
   }
 };
 
-let language = localStorage.getItem('pfg-organizer-language') || 'fr';
+const requestedLanguage = new URLSearchParams(window.location.search).get('lang');
+let language = requestedLanguage === 'en' || requestedLanguage === 'fr'
+  ? requestedLanguage
+  : (localStorage.getItem('jpdb-language') === 'en' ? 'en' : 'fr');
 let organizerEvents = [];
 let pendingSave = null;
 let eventsList = null;
@@ -88,8 +91,15 @@ function setOrganizerControlsEnabled(enabled) {
 
 function setLanguage(nextLanguage) {
   language = copy[nextLanguage] ? nextLanguage : 'fr';
-  localStorage.setItem('pfg-organizer-language', language);
+  localStorage.setItem('jpdb-language', language);
+  const languageUrl = new URL(window.location.href);
+  languageUrl.searchParams.set('lang', language);
+  window.history.replaceState({}, '', languageUrl);
   document.documentElement.lang = language;
+
+  if (window.parent !== window) {
+    window.parent.postMessage({ type: 'JPDB_LANGUAGE_CHANGED', language }, wixParentOrigin() || '*');
+  }
   document.title = language === 'fr' ? 'Espace organisateur — Jouer Pour de Bon' : 'Organizer space — Playing For Good';
 
   document.querySelectorAll('[data-i18n]').forEach((node) => {
@@ -180,6 +190,12 @@ function requestOrganizerEvents() {
 function receiveWixMessage(event) {
   if (event.source !== window.parent || !ALLOWED_WIX_ORIGINS.has(event.origin)) return;
   const message = event.data;
+
+  if (message?.type === 'JPDB_LANGUAGE' && (message.language === 'fr' || message.language === 'en')) {
+    setLanguage(message.language);
+    return;
+  }
+
   if (!message || message.source !== 'jpdb-wix') return;
 
   if (message.type === MESSAGE_TYPES.auth) {
