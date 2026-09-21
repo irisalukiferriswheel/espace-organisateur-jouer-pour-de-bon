@@ -55,6 +55,7 @@ let wixAuth = {
 };
 
 installParticipationModeField();
+OrganizerCauses.init(eventForm, () => language);
 installEventsList();
 OrganizerExtras.init({ anchor: formMessage, language: () => language, authorized: () => wixAuth.isOrganisateur, post: (type, payload) => postToWix(type, payload) });
 initBridge();
@@ -124,6 +125,7 @@ function openCreatePanel() {
   OrganizerExtras.close();
   editingEvent = null;
   eventForm.reset();
+  OrganizerCauses.open();
   updateEditorHeading();
   updatePreview();
   showEditor();
@@ -180,6 +182,7 @@ function openDraft(eventItem) {
     const control = eventForm.elements.namedItem(name);
     if (control) control.value = value ?? '';
   }
+  OrganizerCauses.open(eventItem);
   formMessage.textContent = '';
   updateEditorHeading();
   updatePreview();
@@ -414,6 +417,7 @@ function handleSave(mode = 'draft') {
     return;
   }
   if (!eventForm.reportValidity()) return;
+  if (mode === 'published' && !OrganizerCauses.validatePublish()) return;
   if (!wixParentOrigin()) {
     if (formMessage) formMessage.textContent = copy[language].wixOnly;
     return;
@@ -425,6 +429,7 @@ function handleSave(mode = 'draft') {
     : `${Date.now()}-${Math.random().toString(36).slice(2)}`;
 
   const payload = getFormData();
+  payload.causeId = OrganizerCauses.value();
   if (editingEvent) {
     payload.eventId = editingEvent.id;
     payload.maximumAge = editingEvent.maxAge;

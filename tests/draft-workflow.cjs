@@ -3,6 +3,8 @@ const fs=require('fs'); const assert=require('node:assert/strict'); const path=r
 (async()=>{
  const browser=await chromium.launch({headless:true,channel:process.env.BROWSER_CHANNEL || 'msedge'});
  const page=await browser.newPage({viewport:{width:1100,height:850}});
+ let causeFailure = true;
+ await page.route('https://jouer-pour-de-bon-api.onrender.com/v1/causes**',route=>route.fulfill({status:causeFailure?503:200,contentType:'application/json',body:JSON.stringify({data:[{id:'cause-1',name:'Test cause'}]})}));
  await page.route('https://organizer.test/**', async route=>{
   const file=new URL(route.request().url()).pathname.slice(1)||'index.html';
   await route.fulfill({body:fs.readFileSync(path.join(__dirname,'..',file)),contentType:file.endsWith('.css')?'text/css':file.endsWith('.js')?'text/javascript':'text/html; charset=utf-8'});
@@ -35,16 +37,26 @@ const fs=require('fs'); const assert=require('node:assert/strict'); const path=r
  await frame.locator('#saveDraftBtn').click();
  await frame.locator('#formMessage').filter({hasText:'Test save failed'}).waitFor();
  assert.equal(await frame.locator('[name=title]').inputValue(),'Tournois de Go modifié');
+ await frame.locator('#causeStatus').filter({hasText:'Impossible de charger'}).waitFor();
  await page.evaluate(()=>window.fail=false);
  await frame.locator('#saveDraftBtn').click();
  await frame.getByRole('button',{name:'Ouvrir le brouillon'}).waitFor();
  let calls=await page.evaluate(()=>window.calls);
+ assert.equal(calls.at(-1).payload.causeId,'');
+ causeFailure = false;
  assert.equal(calls.at(-1).type,'JPDB_ORGANIZER_UPDATE_DRAFT');assert.equal(calls.at(-1).payload.eventId,'draft-1');assert.equal(calls.at(-1).payload.maximumAge,60);
  await frame.getByRole('button',{name:'Ouvrir le brouillon'}).click();
  assert.equal(await frame.locator('[name=title]').inputValue(),'Tournois de Go modifié');
+ await frame.locator('#organizerCause option[value="cause-1"]').waitFor({state:'attached'});
+ assert.equal(await frame.locator('#organizerCause').inputValue(),'');
+ const beforePublish = calls.length;
+ await frame.locator('#publishBtn').click();
+ await frame.locator('#causeStatus').filter({hasText:'Sélectionnez une cause approuvée'}).waitFor();
+ assert.equal((await page.evaluate(()=>window.calls)).length,beforePublish);
+ await frame.locator('#organizerCause').selectOption('cause-1');
  await frame.locator('#publishBtn').click();
  await frame.locator('.event-badge').filter({hasText:'Publié'}).waitFor();
- calls=await page.evaluate(()=>window.calls);assert.equal(calls.at(-1).type,'JPDB_ORGANIZER_PUBLISH_EVENT');assert.equal(calls.at(-1).payload.eventId,'draft-1');
+ calls=await page.evaluate(()=>window.calls);assert.equal(calls.at(-1).type,'JPDB_ORGANIZER_PUBLISH_EVENT');assert.equal(calls.at(-1).payload.eventId,'draft-1');assert.equal(calls.at(-1).payload.causeId,'cause-1');
  assert.equal(await frame.locator('.event-card').count(),1);assert.equal(await frame.locator('#emptyState').isVisible(),false);
  await frame.locator('#createEventBtn').click();assert.equal(await frame.locator('[name=title]').inputValue(),'');
  await frame.locator('#closeCreateBtn').click();

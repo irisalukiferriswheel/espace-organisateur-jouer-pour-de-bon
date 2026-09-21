@@ -27,6 +27,15 @@ The unresolved public-versus-invitation-only QR policy is not changed here.
 
 ## Organizer message contract
 
+The approved-cause picker reads the public Render `/v1/causes?lang=fr|en` endpoint
+(already filtered to approved canonical causes; rows need no `status` field).
+Draft payloads include `causeId` when selected. Wix must save, link that ID through
+`/v1/wix/organizer/events/:eventId/cause`, then publish; return `causeId` on event
+list/save responses. A legacy free-text cause is preserved and explicitly unresolved,
+never silently matched by name. Draft saving works during a cause-service failure;
+publication is blocked until an approved cause is selected. The backend revalidates
+approval to cover changes after the picker loaded.
+
 All requests use `source: "jpdb-organizer"`, `requestId`, and `payload`.
 Replies use `source: "jpdb-wix"` and the same `requestId`. The immediate Wix
 parent window is the only accepted sender. The Wix backend derives the organizer

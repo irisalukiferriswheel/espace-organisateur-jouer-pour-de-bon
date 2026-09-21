@@ -6,12 +6,13 @@ const assert = require('node:assert/strict');
   const browser = await chromium.launch({ headless: true, channel: process.env.BROWSER_CHANNEL || 'msedge' });
   const page = await browser.newPage({ viewport: { width: 1100, height: 900 } });
   const errors = []; page.on('pageerror', error => errors.push(error.message));
-  await page.route('https://organizer.test/**', route => {
+  await page.route('https://jouer-pour-de-bon-api.onrender.com/v1/causes**',route=>route.fulfill({contentType:'application/json',body:JSON.stringify({data:[{id:'cause-1',name:'Test cause'}]})}));
+ await page.route('https://organizer.test/**', route => {
     const file = new URL(route.request().url()).pathname.slice(1) || 'index.html';
     return route.fulfill({ body: fs.readFileSync(path.join(__dirname, '..', file)), contentType: file.endsWith('.js') ? 'text/javascript' : file.endsWith('.css') ? 'text/css' : 'text/html; charset=utf-8' });
   });
   await page.route('https://www.jouerpourdebon.ca/test', route => route.fulfill({ contentType: 'text/html', body: `<iframe style="width:100%;height:2400px;border:0" src="https://organizer.test/"></iframe><script>
-    window.eventRow = { id:'event-1', title:'Go Sherbrooke', visibility:'published', competitionId:'competition-1', registrationUrl:'https://www.jouerpourdebon.ca/competitions?jpdbEvent=event-1', startAt:'2027-09-23T17:00:00Z', endAt:'2027-09-23T20:00:00Z', timezone:'America/Toronto', games:['Go'], causeName:'Test cause', format:'physical', city:'Sherbrooke', feeAmount:20, feeCurrency:'CAD', participationMode:'registration' };
+    window.eventRow = { id:'event-1', title:'Go Sherbrooke', visibility:'published', competitionId:'competition-1', registrationUrl:'https://www.jouerpourdebon.ca/competitions?jpdbEvent=event-1', startAt:'2027-09-23T17:00:00Z', endAt:'2027-09-23T20:00:00Z', timezone:'America/Toronto', games:['Go'], causeId:'cause-1',causeName:'Test cause', format:'physical', city:'Sherbrooke', feeAmount:20, feeCurrency:'CAD', participationMode:'registration' };
     window.invites=[{playerId:'p2',alias:'Existing player',status:'accepted'},{playerId:'p3',alias:'Declined player',status:'declined'}]; window.calls=[]; window.failSearch=false; window.failSend=false; window.badPublish=false;
     addEventListener('message', e => {
       const m=e.data; if(m.source!=='jpdb-organizer')return; window.calls.push(m);
@@ -70,7 +71,7 @@ const assert = require('node:assert/strict');
   // A failed publish acknowledgment preserves the editor and never claims success.
   await page.evaluate(()=>{window.eventRow.visibility='draft'; window.badPublish=true;document.querySelector('iframe').contentWindow.postMessage({source:'jpdb-wix',type:'JPDB_ORGANIZER_EVENTS',payload:{events:[window.eventRow]}},'*')});
   assert.equal(await frame.getByRole('button',{name:'Lien et QR',exact:true}).count(),0);
-  await frame.getByRole('button',{name:'Ouvrir le brouillon'}).click(); await frame.locator('#publishBtn').click();
+  await frame.getByRole('button',{name:'Ouvrir le brouillon'}).click(); await frame.locator('#organizerCause option[value="cause-1"]').waitFor({state:'attached'});await frame.locator('#publishBtn').click();
   await frame.locator('#formMessage').filter({hasText:'n’a pas été confirmé'}).waitFor();
   assert.equal(await frame.locator('#createPanel').isVisible(),true);
   assert.equal(await frame.locator('[name=title]').inputValue(),'Go Sherbrooke');
