@@ -14,7 +14,7 @@ const fs=require('fs'); const assert=require('node:assert/strict'); const path=r
  const m=e.data;if(m.source!=='jpdb-organizer')return;
  const send=data=>e.source.postMessage({source:'jpdb-wix',...data},'*');
  if(m.type==='JPDB_ORGANIZER_EMBED_READY')send({type:'JPDB_WIX_MEMBER_AUTH',loggedIn:true,isOrganisateur:true,memberId:'organizer-1',roles:['Organisateur']});
- if(m.type==='JPDB_ORGANIZER_REQUEST_EVENTS')send({type:'JPDB_ORGANIZER_EVENTS',payload:{events:[window.draft]}});
+ if(m.type==='JPDB_ORGANIZER_REQUEST_EVENTS')send({type:'JPDB_ORGANIZER_EVENTS',requestId:m.requestId,payload:{events:[window.draft]}});
  if(['JPDB_ORGANIZER_UPDATE_DRAFT','JPDB_ORGANIZER_PUBLISH_EVENT','JPDB_ORGANIZER_SAVE_DRAFT'].includes(m.type)){
  window.calls.push(m);
  if(window.fail){send({type:'JPDB_ORGANIZER_ERROR',requestId:m.requestId,message:'Test save failed'});return;}
