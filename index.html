@@ -92,9 +92,21 @@
           <fieldset>
             <legend data-i18n="participationLegend">3. Participation</legend>
             <div class="form-grid">
-              <label><span data-i18n="fee">Prix d’inscription</span><input name="fee" type="number" min="0" step="0.01" required placeholder="10.00" /></label>
+              <label><span data-i18n="fee">Prix d’inscription</span>
+                <select name="fee" required>
+                  <option value="" selected>—</option>
+                  <option value="0">0 CAD</option>
+                  <option value="1">1 CAD</option><option value="2">2 CAD</option>
+                  <option value="3">3 CAD</option><option value="5">5 CAD</option>
+                  <option value="7">7 CAD</option><option value="10">10 CAD</option>
+                  <option value="12">12 CAD</option><option value="15">15 CAD</option>
+                  <option value="20">20 CAD</option><option value="25">25 CAD</option>
+                  <option value="30">30 CAD</option><option value="50">50 CAD</option>
+                  <option value="75">75 CAD</option><option value="100">100 CAD</option>
+                </select>
+              </label>
               <label><span data-i18n="currency">Devise</span>
-                <select name="currency"><option value="CAD">CAD</option><option value="USD">USD</option><option value="EUR">EUR</option></select>
+                <select name="currency"><option value="CAD">CAD</option></select>
               </label>
               <label><span data-i18n="capacity">Nombre maximum de joueurs</span><input name="capacity" type="number" min="2" step="1" placeholder="12" /></label>
               <label><span data-i18n="deadline">Date limite d’inscription</span><input name="registrationDeadline" type="datetime-local" /></label>
@@ -165,3 +177,4 @@
   <script src="organizer-ui-unlock.js"></script>
 </body>
 </html>
+
