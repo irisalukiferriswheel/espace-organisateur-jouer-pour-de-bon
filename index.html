@@ -132,18 +132,6 @@
             </div>
           </fieldset>
 
-          <fieldset>
-            <legend data-i18n="publicationLegend">6. Publication</legend>
-            <div class="form-grid">
-              <label><span data-i18n="visibility">Visibilité</span>
-                <select name="visibility"><option value="public" data-i18n="public">Public</option><option value="unlisted" data-i18n="unlisted">Non répertorié</option></select>
-              </label>
-              <label><span data-i18n="initialStatus">Statut initial</span>
-                <select name="status"><option value="draft" data-i18n="draft">Brouillon</option><option value="open_for_registration" data-i18n="openRegistration">Ouvert aux inscriptions</option></select>
-              </label>
-            </div>
-          </fieldset>
-
           <section class="preview-card" aria-labelledby="previewTitle">
             <p class="eyebrow" data-i18n="preview">Aperçu</p>
             <h4 id="previewTitle" data-i18n-default="eventPreview">Votre événement</h4>
@@ -154,14 +142,14 @@
             <button id="saveDraftBtn" class="secondary" type="button" data-i18n="saveDraft">Enregistrer comme brouillon</button>
             <button id="publishBtn" class="primary" type="submit" data-i18n="publish">Publier l’événement</button>
           </div>
-          <p id="formMessage" class="form-message" aria-live="polite"></p>
+
         </form>
       </section>
+      <p id="formMessage" class="form-message" aria-live="polite"></p>
     </section>
   </main>
 
   <script src="app.js"></script>
   <script src="wix-sandbox-bridge.js"></script>
-  <script src="organizer-ui-unlock.js"></script>
 </body>
 </html>
