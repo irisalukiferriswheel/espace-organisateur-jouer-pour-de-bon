@@ -23,6 +23,8 @@ const MESSAGE_TYPES = Object.freeze({
   requestEvents: 'JPDB_ORGANIZER_REQUEST_EVENTS',
   events: 'JPDB_ORGANIZER_EVENTS',
   saveDraft: 'JPDB_ORGANIZER_SAVE_DRAFT',
+  updateDraft: 'JPDB_ORGANIZER_UPDATE_DRAFT',
+  publishEvent: 'JPDB_ORGANIZER_PUBLISH_EVENT',
   draftSaved: 'JPDB_ORGANIZER_DRAFT_SAVED',
   error: 'JPDB_ORGANIZER_ERROR'
 });
@@ -40,6 +42,10 @@ let language = localStorage.getItem('pfg-organizer-language') || 'fr';
 let organizerEvents = [];
 let pendingSave = null;
 let eventsList = null;
+let editingEvent = null;
+let eventsRequestId = null;
+let hasSavedEvent = false;
+let eventsRequestSequence = 0;
 let wixAuth = {
   received: false,
   loggedIn: false,
@@ -49,7 +55,9 @@ let wixAuth = {
 };
 
 installParticipationModeField();
+OrganizerCauses.init(eventForm, () => language);
 installEventsList();
+OrganizerExtras.init({ anchor: formMessage, language: () => language, authorized: () => wixAuth.isOrganisateur, post: (type, payload) => postToWix(type, payload) });
 initBridge();
 setLanguage(language);
 setOrganizerControlsEnabled(false);
@@ -81,7 +89,7 @@ function installEventsList() {
 }
 
 function setOrganizerControlsEnabled(enabled) {
-  if (createEventBtn) createEventBtn.disabled = !enabled;
+  if (createEventBtn) createEventBtn.disabled = Boolean(pendingSave);
   if (saveDraftBtn) saveDraftBtn.disabled = !enabled;
   if (publishBtn) publishBtn.disabled = !enabled;
 }
@@ -109,10 +117,22 @@ function setLanguage(nextLanguage) {
 
   updatePreview();
   renderEvents();
+  updateEditorHeading();
 }
 
 function openCreatePanel() {
-  if (!wixAuth.isOrganisateur) return;
+  if (pendingSave) return;
+  OrganizerExtras.close();
+  editingEvent = null;
+  eventForm.reset();
+  OrganizerCauses.open();
+  updateEditorHeading();
+  updatePreview();
+  showEditor();
+}
+
+function showEditor() {
+  OrganizerExtras.close();
   createPanel.hidden = false;
   if (emptyState) emptyState.hidden = true;
   if (eventsList) eventsList.hidden = true;
@@ -120,8 +140,54 @@ function openCreatePanel() {
 }
 
 function closeCreatePanel() {
+  if (pendingSave) return;
   createPanel.hidden = true;
   renderEvents();
+}
+
+function updateEditorHeading() {
+  const heading = createPanel.querySelector('[data-i18n="createEventTitle"]');
+  if (heading) heading.textContent = editingEvent
+    ? (language === 'fr' ? 'Modifier le brouillon' : 'Edit draft')
+    : copy[language].createEventTitle;
+}
+
+function localEventParts(value, timezone) {
+  if (!value) return { date: '', time: '', dateTime: '' };
+  const parts = Object.fromEntries(new Intl.DateTimeFormat('en-CA', {
+    timeZone: timezone || 'America/Toronto', year: 'numeric', month: '2-digit', day: '2-digit',
+    hour: '2-digit', minute: '2-digit', hourCycle: 'h23'
+  }).formatToParts(new Date(value)).map(part => [part.type, part.value]));
+  const date = `${parts.year}-${parts.month}-${parts.day}`;
+  const time = `${parts.hour}:${parts.minute}`;
+  return { date, time, dateTime: `${date}T${time}` };
+}
+
+function openDraft(eventItem) {
+  if (pendingSave || !wixAuth.isOrganisateur || eventItem.visibility !== 'draft') return;
+  editingEvent = eventItem;
+  eventForm.reset();
+  const start = localEventParts(eventItem.startAt, eventItem.timezone);
+  const data = {
+    ...eventItem, activityType: eventItem.games?.[0] || '',
+    format: eventItem.format === 'physical' ? 'in_person' : eventItem.format,
+    date: start.date, startTime: start.time,
+    endTime: localEventParts(eventItem.endAt, eventItem.timezone).time,
+    fee: eventItem.feeAmount, currency: eventItem.feeCurrency,
+    capacity: eventItem.maxParticipants, minimumAge: eventItem.minAge,
+    maximumAge: eventItem.maxAge, cause: eventItem.causeName,
+    registrationDeadline: localEventParts(eventItem.registrationDeadline, eventItem.timezone).dateTime
+  };
+  for (const [name, value] of Object.entries(data)) {
+    const control = eventForm.elements.namedItem(name);
+    if (control) control.value = value ?? '';
+  }
+  OrganizerCauses.open(eventItem);
+  formMessage.textContent = '';
+  updateEditorHeading();
+  updatePreview();
+  showEditor();
+  eventForm.elements.title.focus({ preventScroll: true });
 }
 
 function getFormData() {
@@ -174,20 +240,22 @@ function initBridge() {
 
 function requestOrganizerEvents() {
   if (!wixAuth.isOrganisateur) return;
-  postToWix(MESSAGE_TYPES.requestEvents);
+  eventsRequestId = `events-${Date.now()}-${++eventsRequestSequence}`;
+  postToWix(MESSAGE_TYPES.requestEvents, { requestId: eventsRequestId });
 }
 
 function receiveWixMessage(event) {
   if (event.source !== window.parent || !ALLOWED_WIX_ORIGINS.has(event.origin)) return;
   const message = event.data;
   if (!message || message.source !== 'jpdb-wix') return;
+  if (OrganizerExtras.receive(message)) return;
 
   if (message.type === MESSAGE_TYPES.auth) {
     const roles = Array.isArray(message.roles)
       ? message.roles.map((role) => String(role || '').trim()).filter(Boolean)
       : [];
     const normalized = roles.map((role) => role.toLocaleLowerCase('fr-CA'));
-    const roleSaysOrganizer = normalized.includes('organisateur') || normalized.includes('admin');
+    const roleSaysOrganizer = normalized.some(role => ['organisateur', 'organizer', 'pfg admin', 'admin'].includes(role));
 
     wixAuth = {
       received: true,
@@ -214,23 +282,36 @@ function receiveWixMessage(event) {
       return;
     }
 
-    if (formMessage) formMessage.textContent = language === 'fr'
+    if (formMessage && !hasSavedEvent && !pendingSave) formMessage.textContent = language === 'fr'
       ? `Accès organisateur confirmé (${roles.join(', ')}).`
       : `Organizer access confirmed (${roles.join(', ')}).`;
 
-    postToWix(MESSAGE_TYPES.ready);
+    requestOrganizerEvents();
     return;
   }
 
   if (message.type === MESSAGE_TYPES.events) {
+    // Old list requests must not erase a newer save/publication.
+    if (message.requestId ? message.requestId !== eventsRequestId : hasSavedEvent || pendingSave) return;
     organizerEvents = Array.isArray(message.payload?.events) ? message.payload.events : [];
     renderEvents();
     return;
   }
 
   if (message.type === MESSAGE_TYPES.draftSaved) {
-    if (pendingSave && message.requestId !== pendingSave.id) return;
+    if (!pendingSave || message.requestId !== pendingSave.id) return;
     const saveMode = pendingSave?.mode || 'draft';
+    const savedEvent = message.payload?.event;
+    if (savedEvent?.id) hasSavedEvent = true;
+    if (!savedEvent?.id || (saveMode === 'published' && savedEvent.visibility !== 'published')) {
+      clearPendingSave();
+      if (savedEvent?.id) editingEvent = savedEvent;
+      formMessage.textContent = language === 'fr'
+        ? 'L’enregistrement ou la publication n’a pas été confirmé. Votre formulaire est conservé. Vérifiez vos événements avant de réessayer.'
+        : 'Saving or publication was not confirmed. Your form is preserved. Check your events before retrying.';
+      requestOrganizerEvents();
+      return;
+    }
     clearPendingSave();
     if (message.payload?.event) {
       organizerEvents = [message.payload.event, ...organizerEvents.filter((eventItem) => eventItem.id !== message.payload.event.id)];
@@ -239,15 +320,24 @@ function receiveWixMessage(event) {
       ? (language === 'fr' ? 'Événement publié.' : 'Event published.')
       : copy[language].saved;
     eventForm?.reset();
+    editingEvent = null;
     updatePreview();
     createPanel.hidden = true;
     renderEvents();
+    requestOrganizerEvents();
+    if (saveMode === 'published') OrganizerExtras.published(savedEvent);
+    formMessage.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
     return;
   }
 
   if (message.type === MESSAGE_TYPES.error) {
     if (pendingSave && message.requestId && message.requestId !== pendingSave.id) return;
     clearPendingSave();
+    if (message.payload?.event?.id) {
+      editingEvent = message.payload.event;
+      organizerEvents = [editingEvent, ...organizerEvents.filter(item => item.id !== editingEvent.id)];
+      updateEditorHeading();
+    }
     if (formMessage) formMessage.textContent = message.message || copy[language].saveError;
   }
 }
@@ -283,6 +373,19 @@ function renderEvents() {
         <span>${escapeHtml(competitionLabel)}</span>
       </div>`;
     eventsList.appendChild(card);
+    OrganizerExtras.appendActions(card, eventItem);
+    if (eventItem.visibility === 'draft') {
+      const actions = document.createElement('div');
+      actions.className = 'event-card__actions';
+      const editButton = document.createElement('button');
+      editButton.type = 'button';
+      editButton.className = 'primary';
+      editButton.textContent = language === 'fr' ? 'Ouvrir le brouillon' : 'Open draft';
+      editButton.disabled = !wixAuth.isOrganisateur;
+      editButton.addEventListener('click', () => openDraft(eventItem));
+      actions.appendChild(editButton);
+      card.appendChild(actions);
+    }
   });
 }
 
@@ -314,6 +417,7 @@ function handleSave(mode = 'draft') {
     return;
   }
   if (!eventForm.reportValidity()) return;
+  if (mode === 'published' && !OrganizerCauses.validatePublish()) return;
   if (!wixParentOrigin()) {
     if (formMessage) formMessage.textContent = copy[language].wixOnly;
     return;
@@ -325,6 +429,11 @@ function handleSave(mode = 'draft') {
     : `${Date.now()}-${Math.random().toString(36).slice(2)}`;
 
   const payload = getFormData();
+  payload.causeId = OrganizerCauses.value();
+  if (editingEvent) {
+    payload.eventId = editingEvent.id;
+    payload.maximumAge = editingEvent.maxAge;
+  }
   if (mode === 'published') {
     payload.visibility = 'published';
     payload.status = payload.status === 'open_for_registration' ? 'open_for_registration' : 'scheduled';
@@ -348,7 +457,9 @@ function handleSave(mode = 'draft') {
   }, 25000);
 
   pendingSave = { id: requestId, timer, mode };
-  postToWix(MESSAGE_TYPES.saveDraft, { requestId, payload });
+  const type = mode === 'published' ? MESSAGE_TYPES.publishEvent
+    : editingEvent ? MESSAGE_TYPES.updateDraft : MESSAGE_TYPES.saveDraft;
+  postToWix(type, { requestId, payload });
 }
 
 function handleDraft() {
