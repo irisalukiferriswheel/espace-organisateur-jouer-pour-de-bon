@@ -87,7 +87,7 @@ window.OrganizerExtras = (() => {
     panel.append(actions); h.focus(); panel.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
   }
   function inviteStatus(value) {
-    const labels = { created: ['En attente', 'Pending'], sent: ['Envoyée', 'Sent'], accepted: ['Acceptée', 'Accepted'], declined: ['Refusée', 'Declined'], revoked: ['Annulée', 'Revoked'] };
+    const labels = { created: ['En attente', 'Pending'], sent: ['Envoyée', 'Sent'], accepted: ['Acceptée', 'Accepted'], declined: ['Refusée', 'Declined'], revoked: ['Annulée', 'Revoked'], expired: ['Expirée', 'Expired'] };
     return labels[value] ? t(...labels[value]) : t('En attente', 'Pending');
   }
   function renderInvitations() {
@@ -95,7 +95,7 @@ window.OrganizerExtras = (() => {
     list.replaceChildren();
     if (!invitations.length) { list.append(el('p', t('Aucune invitation envoyée.', 'No invitations sent.'))); return; }
     for (const invite of invitations) {
-      const row = el('li'); row.append(el('span', invite.alias || invite.playerAlias || t('Joueur invité', 'Invited player')), el('span', inviteStatus(invite.status), 'event-badge')); list.append(row);
+      const row = el('li'); row.append(el('span', invite.alias || invite.playerAlias || searchResults.find(player => player.id === invite.playerId)?.alias || t('Joueur invité', 'Invited player')), el('span', inviteStatus(invite.status), 'event-badge')); list.append(row);
     }
   }
   function renderPlayers() {
