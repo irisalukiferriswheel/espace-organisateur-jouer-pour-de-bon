@@ -23,6 +23,8 @@ const MESSAGE_TYPES = Object.freeze({
   requestEvents: 'JPDB_ORGANIZER_REQUEST_EVENTS',
   events: 'JPDB_ORGANIZER_EVENTS',
   saveDraft: 'JPDB_ORGANIZER_SAVE_DRAFT',
+  updateDraft: 'JPDB_ORGANIZER_UPDATE_DRAFT',
+  publishEvent: 'JPDB_ORGANIZER_PUBLISH_EVENT',
   draftSaved: 'JPDB_ORGANIZER_DRAFT_SAVED',
   error: 'JPDB_ORGANIZER_ERROR'
 });
@@ -40,6 +42,7 @@ let language = localStorage.getItem('pfg-organizer-language') || 'fr';
 let organizerEvents = [];
 let pendingSave = null;
 let eventsList = null;
+let editingEvent = null;
 let wixAuth = {
   received: false,
   loggedIn: false,
@@ -81,7 +84,7 @@ function installEventsList() {
 }
 
 function setOrganizerControlsEnabled(enabled) {
-  if (createEventBtn) createEventBtn.disabled = !enabled;
+  if (createEventBtn) createEventBtn.disabled = Boolean(pendingSave);
   if (saveDraftBtn) saveDraftBtn.disabled = !enabled;
   if (publishBtn) publishBtn.disabled = !enabled;
 }
@@ -109,10 +112,19 @@ function setLanguage(nextLanguage) {
 
   updatePreview();
   renderEvents();
+  updateEditorHeading();
 }
 
 function openCreatePanel() {
-  if (!wixAuth.isOrganisateur) return;
+  if (pendingSave) return;
+  editingEvent = null;
+  eventForm.reset();
+  updateEditorHeading();
+  updatePreview();
+  showEditor();
+}
+
+function showEditor() {
   createPanel.hidden = false;
   if (emptyState) emptyState.hidden = true;
   if (eventsList) eventsList.hidden = true;
@@ -120,8 +132,53 @@ function openCreatePanel() {
 }
 
 function closeCreatePanel() {
+  if (pendingSave) return;
   createPanel.hidden = true;
   renderEvents();
+}
+
+function updateEditorHeading() {
+  const heading = createPanel.querySelector('[data-i18n="createEventTitle"]');
+  if (heading) heading.textContent = editingEvent
+    ? (language === 'fr' ? 'Modifier le brouillon' : 'Edit draft')
+    : copy[language].createEventTitle;
+}
+
+function localEventParts(value, timezone) {
+  if (!value) return { date: '', time: '', dateTime: '' };
+  const parts = Object.fromEntries(new Intl.DateTimeFormat('en-CA', {
+    timeZone: timezone || 'America/Toronto', year: 'numeric', month: '2-digit', day: '2-digit',
+    hour: '2-digit', minute: '2-digit', hourCycle: 'h23'
+  }).formatToParts(new Date(value)).map(part => [part.type, part.value]));
+  const date = `${parts.year}-${parts.month}-${parts.day}`;
+  const time = `${parts.hour}:${parts.minute}`;
+  return { date, time, dateTime: `${date}T${time}` };
+}
+
+function openDraft(eventItem) {
+  if (pendingSave || !wixAuth.isOrganisateur || eventItem.visibility !== 'draft') return;
+  editingEvent = eventItem;
+  eventForm.reset();
+  const start = localEventParts(eventItem.startAt, eventItem.timezone);
+  const data = {
+    ...eventItem, activityType: eventItem.games?.[0] || '',
+    format: eventItem.format === 'physical' ? 'in_person' : eventItem.format,
+    date: start.date, startTime: start.time,
+    endTime: localEventParts(eventItem.endAt, eventItem.timezone).time,
+    fee: eventItem.feeAmount, currency: eventItem.feeCurrency,
+    capacity: eventItem.maxParticipants, minimumAge: eventItem.minAge,
+    maximumAge: eventItem.maxAge, cause: eventItem.causeName,
+    registrationDeadline: localEventParts(eventItem.registrationDeadline, eventItem.timezone).dateTime
+  };
+  for (const [name, value] of Object.entries(data)) {
+    const control = eventForm.elements.namedItem(name);
+    if (control) control.value = value ?? '';
+  }
+  formMessage.textContent = '';
+  updateEditorHeading();
+  updatePreview();
+  showEditor();
+  eventForm.elements.title.focus({ preventScroll: true });
 }
 
 function getFormData() {
@@ -187,7 +244,7 @@ function receiveWixMessage(event) {
       ? message.roles.map((role) => String(role || '').trim()).filter(Boolean)
       : [];
     const normalized = roles.map((role) => role.toLocaleLowerCase('fr-CA'));
-    const roleSaysOrganizer = normalized.includes('organisateur') || normalized.includes('admin');
+    const roleSaysOrganizer = normalized.some(role => ['organisateur', 'organizer', 'pfg admin', 'admin'].includes(role));
 
     wixAuth = {
       received: true,
@@ -218,7 +275,7 @@ function receiveWixMessage(event) {
       ? `Accès organisateur confirmé (${roles.join(', ')}).`
       : `Organizer access confirmed (${roles.join(', ')}).`;
 
-    postToWix(MESSAGE_TYPES.ready);
+    requestOrganizerEvents();
     return;
   }
 
@@ -229,7 +286,7 @@ function receiveWixMessage(event) {
   }
 
   if (message.type === MESSAGE_TYPES.draftSaved) {
-    if (pendingSave && message.requestId !== pendingSave.id) return;
+    if (!pendingSave || message.requestId !== pendingSave.id) return;
     const saveMode = pendingSave?.mode || 'draft';
     clearPendingSave();
     if (message.payload?.event) {
@@ -239,15 +296,22 @@ function receiveWixMessage(event) {
       ? (language === 'fr' ? 'Événement publié.' : 'Event published.')
       : copy[language].saved;
     eventForm?.reset();
+    editingEvent = null;
     updatePreview();
     createPanel.hidden = true;
     renderEvents();
+    requestOrganizerEvents();
     return;
   }
 
   if (message.type === MESSAGE_TYPES.error) {
     if (pendingSave && message.requestId && message.requestId !== pendingSave.id) return;
     clearPendingSave();
+    if (message.payload?.event?.id) {
+      editingEvent = message.payload.event;
+      organizerEvents = [editingEvent, ...organizerEvents.filter(item => item.id !== editingEvent.id)];
+      updateEditorHeading();
+    }
     if (formMessage) formMessage.textContent = message.message || copy[language].saveError;
   }
 }
@@ -283,6 +347,18 @@ function renderEvents() {
         <span>${escapeHtml(competitionLabel)}</span>
       </div>`;
     eventsList.appendChild(card);
+    if (eventItem.visibility === 'draft') {
+      const actions = document.createElement('div');
+      actions.className = 'event-card__actions';
+      const editButton = document.createElement('button');
+      editButton.type = 'button';
+      editButton.className = 'primary';
+      editButton.textContent = language === 'fr' ? 'Ouvrir le brouillon' : 'Open draft';
+      editButton.disabled = !wixAuth.isOrganisateur;
+      editButton.addEventListener('click', () => openDraft(eventItem));
+      actions.appendChild(editButton);
+      card.appendChild(actions);
+    }
   });
 }
 
@@ -325,6 +401,10 @@ function handleSave(mode = 'draft') {
     : `${Date.now()}-${Math.random().toString(36).slice(2)}`;
 
   const payload = getFormData();
+  if (editingEvent) {
+    payload.eventId = editingEvent.id;
+    payload.maximumAge = editingEvent.maxAge;
+  }
   if (mode === 'published') {
     payload.visibility = 'published';
     payload.status = payload.status === 'open_for_registration' ? 'open_for_registration' : 'scheduled';
@@ -348,7 +428,9 @@ function handleSave(mode = 'draft') {
   }, 25000);
 
   pendingSave = { id: requestId, timer, mode };
-  postToWix(MESSAGE_TYPES.saveDraft, { requestId, payload });
+  const type = mode === 'published' ? MESSAGE_TYPES.publishEvent
+    : editingEvent ? MESSAGE_TYPES.updateDraft : MESSAGE_TYPES.saveDraft;
+  postToWix(type, { requestId, payload });
 }
 
 function handleDraft() {
