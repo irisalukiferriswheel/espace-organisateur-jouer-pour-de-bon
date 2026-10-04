@@ -81,6 +81,8 @@ let language = requestedLanguage === 'en' || requestedLanguage === 'fr'
   : (readStoredLanguage() === 'en' ? 'en' : 'fr');
 let organizerEvents = [];
 let pendingSave = null;
+let causeChoices=[];
+const causeChoice=document.querySelector('#causeChoice');
 let eventsList = null;
 let wixAuth = {
   received: false,
@@ -139,6 +141,7 @@ function setLanguage(nextLanguage, options = {}) {
   languageUrl.searchParams.set('lang', language);
   window.history.replaceState({}, '', languageUrl);
   document.documentElement.lang = language;
+  renderCauseChoices();
 
   if (options.notifyHost !== false && window.parent !== window) {
     window.parent.postMessage({ type: 'JPDB_LANGUAGE_CHANGED', language }, wixParentOrigin() || '*');
@@ -178,7 +181,11 @@ function closeCreatePanel() {
 }
 
 function getFormData() {
-  return Object.fromEntries(new FormData(eventForm).entries());
+  const data=Object.fromEntries(new FormData(eventForm).entries());
+  if(eventForm.dataset.eventId)data.eventId=eventForm.dataset.eventId;
+  const choice=causeChoices.find(c=>c.id===data.existingCauseId);
+  if(choice){data.existingCauseCurrency=choice.currency;data.cause=choice.name;}
+  return data;
 }
 
 function clearValidationErrors() {
@@ -327,9 +334,14 @@ function receiveWixMessage(event) {
 
     postToWix(MESSAGE_TYPES.ready);
     requestOrganizerEvents();
+    postToWix('JPDB_ORGANIZER_CAUSES_REQUEST');
     return;
   }
 
+  if(message.type==='JPDB_ORGANIZER_CAUSES'){
+    causeChoices=Array.isArray(message.payload?.causes)?message.payload.causes:[];
+    renderCauseChoices();return;
+  }
   if (message.type === MESSAGE_TYPES.events) {
     organizerEvents = Array.isArray(message.payload?.events) ? message.payload.events : [];
     renderEvents();
@@ -338,6 +350,7 @@ function receiveWixMessage(event) {
 
   if (message.type === MESSAGE_TYPES.draftSaved) {
     if (pendingSave && message.requestId !== pendingSave.id) return;
+    if(message.payload?.event?.id)eventForm.dataset.eventId=message.payload.event.id;
     if (!window.JPDBCauseForm.hasConfirmedCauseSubmission(message.payload)) {
       clearPendingSave();
       if (formMessage) formMessage.textContent = copy[language].causeNotConfirmed;
@@ -353,7 +366,10 @@ function receiveWixMessage(event) {
       : (saveMode === 'published'
         ? (language === 'fr' ? 'Événement publié.' : 'Event published.')
         : copy[language].saved);
+    if(message.payload.causeSubmission.status==='pending')return;
     eventForm?.reset();
+    updateCauseChoiceFields();
+    delete eventForm.dataset.eventId;
     updatePreview();
     createPanel.hidden = true;
     renderEvents();
@@ -361,6 +377,7 @@ function receiveWixMessage(event) {
   }
 
   if (message.type === MESSAGE_TYPES.error) {
+    if(message.payload?.event?.id)eventForm.dataset.eventId=message.payload.event.id;
     if (pendingSave && message.requestId && message.requestId !== pendingSave.id) return;
     clearPendingSave();
     if (formMessage) formMessage.textContent = message.message || copy[language].saveError;
@@ -506,3 +523,20 @@ eventForm?.addEventListener('input', updatePreview);
 eventForm?.addEventListener('change', updatePreview);
 langFrBtn?.addEventListener('click', () => setLanguage('fr'));
 langEnBtn?.addEventListener('click', () => setLanguage('en'));
+
+
+function renderCauseChoices(){
+ if(!causeChoice)return;
+ const selected=causeChoice.value;causeChoice.replaceChildren();
+ const empty=document.createElement('option');empty.value='';empty.textContent=language==='fr'?'Proposer une nouvelle cause':'Propose a new cause';causeChoice.append(empty);
+ document.querySelector('#causeChoiceLabel').textContent=language==='fr'?'Choisir une cause':'Choose a cause';
+ for(const c of causeChoices){const option=document.createElement('option');option.value=c.id;option.textContent=c.name+' ('+c.currency+')';causeChoice.append(option);}
+ causeChoice.value=selected;
+}
+function updateCauseChoiceFields(){
+ const existing=!!causeChoice.value;
+ for(const name of ['causeName','causeDescriptionFr','causeDescriptionEn','causeGoalAmount','causeGoalCurrency']){
+  const field=eventForm.elements.namedItem(name);if(field){field.disabled=existing;field.closest('label').hidden=existing;}
+ }
+}
+causeChoice?.addEventListener('change',updateCauseChoiceFields);

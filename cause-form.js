@@ -51,10 +51,16 @@
       }
     }
 
+    if(values.existingCauseId){
+      for(const field of ['causeName','causeDescriptionFr','causeDescriptionEn','causeGoalAmount','causeGoalCurrency'])delete errors[field];
+      if(!/^[0-9a-f-]{36}$/i.test(values.existingCauseId))errors.existingCauseId='causeName';
+      if(values.existingCauseCurrency!==values.currency)errors.currency='currencyMismatch';
+    }
     return { valid: Object.keys(errors).length === 0, errors };
   }
 
   function buildCauseSubmission(values, language) {
+    if(values.existingCauseId)return {existingCauseId:values.existingCauseId,currency:values.currency};
     const locale = SUPPORTED_LOCALES.has(language) ? language : 'fr';
     const descriptionFr = trim(values.causeDescriptionFr);
     const descriptionEn = trim(values.causeDescriptionEn);
@@ -81,3 +87,4 @@
 
   return { buildCauseSubmission, hasConfirmedCauseSubmission, toMinorUnits, validate };
 });
+

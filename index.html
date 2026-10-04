@@ -118,6 +118,7 @@
               <p data-i18n="approvalBody">Cette proposition sera mise en attente. Un administrateur vérifiera la cause et la reliera à une cause existante en cas de doublon avant son affichage public.</p>
             </div>
             <div class="form-grid">
+              <label class="full-width"><span id="causeChoiceLabel">Choisir une cause</span><select id="causeChoice" name="existingCauseId"><option value="">Proposer une nouvelle cause</option></select></label>
               <label class="full-width"><span data-i18n="causeName">Nom de la cause</span>
                 <input name="causeName" type="text" required maxlength="160" data-placeholder-fr="Ex. Les Amis de la Terre" data-placeholder-en="Ex. Friends of the Earth" placeholder="Ex. Les Amis de la Terre" />
               </label>
@@ -185,3 +186,4 @@
   <script src="organizer-ui-unlock.js"></script>
 </body>
 </html>
+

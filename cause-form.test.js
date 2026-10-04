@@ -2,6 +2,14 @@ const test = require('node:test');
 const assert = require('node:assert/strict');
 const { buildCauseSubmission, hasConfirmedCauseSubmission, toMinorUnits, validate } = require('./cause-form');
 
+test('existing cause selection needs no new proposal but still enforces the currency and split',()=>{
+ const data={existingCauseId:'10000000-0000-0000-0000-000000000001',existingCauseCurrency:'CAD',fee:'20.00',currency:'CAD'};
+ assert.equal(validate(data).valid,true);
+ assert.deepEqual(buildCauseSubmission(data,'fr'),{existingCauseId:data.existingCauseId,currency:'CAD'});
+ assert.equal(validate({...data,currency:'USD'}).valid,false);
+ assert.equal(validate({...data,fee:'20.01'}).valid,false);
+});
+
 test('parses exact currency amounts without floating point rounding', () => {
   assert.equal(toMinorUnits('10.02'), 1002);
   assert.equal(toMinorUnits('10.001'), null);
