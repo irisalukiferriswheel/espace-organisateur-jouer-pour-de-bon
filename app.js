@@ -38,6 +38,10 @@ const copy = {
 };
 
 Object.assign(copy.fr, {
+  causePurpose:'Destination des fonds',choosePurpose:'Choisir la destination',charityPurpose:'Don à un organisme de bienfaisance',participantPurpose:'Projet ou activité au bénéfice des participants',
+  causeDeadline:'Échéance de la cause (obligatoire pour les projets des participants)',
+  purposeHint:'Les dons de bienfaisance n’exigent pas de contributions égales. Les projets des participants prévoient une mise à niveau à l’échéance; les paiements complémentaires vont entièrement à la cause.',
+  causePurposeError:'Choisissez la destination des fonds.',causeDeadlineError:'Indiquez une échéance valide pour le projet des participants.',
   feeHint: 'Le prix doit pouvoir être partagé exactement en deux au cent près.',
   causeDescriptionFr: 'Description de la cause — français',
   causeDescriptionEn: 'Description de la cause — anglais',
@@ -57,6 +61,10 @@ Object.assign(copy.fr, {
 });
 
 Object.assign(copy.en, {
+  causePurpose:'Purpose of the funds',choosePurpose:'Choose a purpose',charityPurpose:'Donation to a charity',participantPurpose:'Project or activity benefiting participants',
+  causeDeadline:'Cause deadline (required for participant projects)',
+  purposeHint:'Charitable causes do not require equal contributions. Participant projects require equalization at the deadline; catch-up payments go entirely to the cause.',
+  causePurposeError:'Choose the purpose of the funds.',causeDeadlineError:'Enter a valid deadline for the participant project.',
   feeHint: 'The fee must split exactly in half to the nearest cent.',
   causeDescriptionFr: 'Cause description — French',
   causeDescriptionEn: 'Cause description — English',
@@ -208,6 +216,8 @@ function translatedValidationMessage(code) {
   if (code === 'currencyMismatch') return copy[language].currencyMismatchError;
   if (code === 'endAfterStart') return copy[language].endTimeError;
   if (code === 'deadlineBeforeStart') return copy[language].deadlineError;
+  if (code === 'causePurpose') return copy[language].causePurposeError;
+  if (code === 'causeDeadline') return copy[language].causeDeadlineError;
   return copy[language].validationTitle;
 }
 
@@ -530,12 +540,12 @@ function renderCauseChoices(){
  const selected=causeChoice.value;causeChoice.replaceChildren();
  const empty=document.createElement('option');empty.value='';empty.textContent=language==='fr'?'Proposer une nouvelle cause':'Propose a new cause';causeChoice.append(empty);
  document.querySelector('#causeChoiceLabel').textContent=language==='fr'?'Choisir une cause':'Choose a cause';
- for(const c of causeChoices){const option=document.createElement('option');option.value=c.id;option.textContent=c.name+' ('+c.currency+')';causeChoice.append(option);}
+ for(const c of causeChoices){const option=document.createElement('option');option.value=c.id;option.textContent=c.name+' ('+c.currency+')'+(c.status==='approved'?'':(document.documentElement.lang==='en'?' — awaiting approval':' — en attente d’approbation'));causeChoice.append(option);}
  causeChoice.value=selected;
 }
 function updateCauseChoiceFields(){
  const existing=!!causeChoice.value;
- for(const name of ['causeName','causeDescriptionFr','causeDescriptionEn','causeGoalAmount','causeGoalCurrency']){
+ for(const name of ['causeName','causeDescriptionFr','causeDescriptionEn','causeGoalAmount','causeGoalCurrency','causePurpose','causeDeadline']){
   const field=eventForm.elements.namedItem(name);if(field){field.disabled=existing;field.closest('label').hidden=existing;}
  }
 }

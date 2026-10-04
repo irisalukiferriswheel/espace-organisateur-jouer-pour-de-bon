@@ -119,6 +119,9 @@
             </div>
             <div class="form-grid">
               <label class="full-width"><span id="causeChoiceLabel">Choisir une cause</span><select id="causeChoice" name="existingCauseId"><option value="">Proposer une nouvelle cause</option></select></label>
+              <label class="full-width"><span data-i18n="causePurpose">Destination des fonds</span><select name="causePurpose" required><option value="" data-i18n="choosePurpose">Choisir la destination</option><option value="charity" data-i18n="charityPurpose">Don à un organisme de bienfaisance</option><option value="participant_benefit" data-i18n="participantPurpose">Projet ou activité au bénéfice des participants</option></select></label>
+              <p class="full-width" data-i18n="purposeHint">Les dons de bienfaisance n’exigent pas de contributions égales. Les projets des participants prévoient une mise à niveau à l’échéance; les paiements complémentaires vont entièrement à la cause.</p>
+              <label><span data-i18n="causeDeadline">Échéance de la cause (obligatoire pour les projets des participants)</span><input name="causeDeadline" type="date" /></label>
               <label class="full-width"><span data-i18n="causeName">Nom de la cause</span>
                 <input name="causeName" type="text" required maxlength="160" data-placeholder-fr="Ex. Les Amis de la Terre" data-placeholder-en="Ex. Friends of the Earth" placeholder="Ex. Les Amis de la Terre" />
               </label>

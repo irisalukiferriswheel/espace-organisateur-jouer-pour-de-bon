@@ -14,6 +14,13 @@ test('parses exact currency amounts without floating point rounding', () => {
   assert.equal(toMinorUnits('10.02'), 1002);
   assert.equal(toMinorUnits('10.001'), null);
 });
+test('new cause requires a purpose and participant-benefit causes require a deadline',()=>{
+ const values={causeName:'Community cause',causeDescriptionEn:'A project supporting local participants.',fee:'20',currency:'CAD',causeGoalAmount:'1000',causeGoalCurrency:'CAD'};
+ assert.equal(validate(values).errors.causePurpose,'causePurpose');
+ assert.equal(validate({...values,causePurpose:'charity'}).valid,true);
+ assert.equal(validate({...values,causePurpose:'participant_benefit'}).errors.causeDeadline,'causeDeadline');
+ assert.equal(validate({...values,causePurpose:'participant_benefit',causeDeadline:'2027-06-30'}).valid,true);
+});
 
 test('requires an exact-cent 50/50 event fee split', () => {
   const result = validate({
@@ -26,12 +33,14 @@ test('requires an exact-cent 50/50 event fee split', () => {
 
 test('accepts either localized description and preserves its locale', () => {
   const values = {
+    causePurpose:'charity',
     causeName: 'Community kitchen', causeDescriptionEn: 'A community kitchen serving local families.',
     fee: '10.00', currency: 'CAD', causeGoalAmount: '5000', causeGoalCurrency: 'CAD'
   };
   assert.equal(validate(values).valid, true);
   assert.deepEqual(buildCauseSubmission(values, 'fr'), {
     causeName: 'Community kitchen',
+    causePurpose:'charity',causeDeadline:null,
     causeDescription: 'A community kitchen serving local families.',
     causeDescriptionLocale: 'en',
     causeDescriptions: { en: 'A community kitchen serving local families.' },

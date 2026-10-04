@@ -25,6 +25,8 @@
     const descriptionEn = trim(values.causeDescriptionEn);
     const feeMinor = toMinorUnits(values.fee);
     const goalMinor = toMinorUnits(values.causeGoalAmount);
+    if(!['charity','participant_benefit'].includes(values.causePurpose))errors.causePurpose='causePurpose';
+    if(values.causePurpose==='participant_benefit'&&!/^\d{4}-\d{2}-\d{2}$/.test(values.causeDeadline||''))errors.causeDeadline='causeDeadline';
 
     if (causeName.length < 3) errors.causeName = 'causeName';
     if (!descriptionFr && !descriptionEn) errors.causeDescriptionFr = 'causeDescription';
@@ -52,7 +54,7 @@
     }
 
     if(values.existingCauseId){
-      for(const field of ['causeName','causeDescriptionFr','causeDescriptionEn','causeGoalAmount','causeGoalCurrency'])delete errors[field];
+      for(const field of ['causeName','causeDescriptionFr','causeDescriptionEn','causeGoalAmount','causeGoalCurrency','causePurpose','causeDeadline'])delete errors[field];
       if(!/^[0-9a-f-]{36}$/i.test(values.existingCauseId))errors.existingCauseId='causeName';
       if(values.existingCauseCurrency!==values.currency)errors.currency='currencyMismatch';
     }
@@ -71,6 +73,8 @@
 
     return {
       causeName: trim(values.causeName),
+      causePurpose: values.causePurpose,
+      causeDeadline: trim(values.causeDeadline)||null,
       causeDescription: descriptions[primaryLocale],
       causeDescriptionLocale: primaryLocale,
       causeDescriptions: descriptions,
