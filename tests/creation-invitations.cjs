@@ -61,7 +61,11 @@ const eventId='11111111-1111-4111-8111-111111111111',playerId='22222222-2222-422
   if(process.env.QR_DECODER_MODULE&&process.env.SHARP_MODULE){const sharp=require(process.env.SHARP_MODULE),decode=require(process.env.QR_DECODER_MODULE);const {data,info}=await sharp(await frame.locator('.event-qr').screenshot()).ensureAlpha().raw().toBuffer({resolveWithObject:true});assert.equal(decode(new Uint8ClampedArray(data),info.width,info.height).data,qrUrl);}
   await page.setViewportSize({width:390,height:844});assert.equal(await frame.locator('body').evaluate(el=>el.scrollWidth<=el.clientWidth),true);
   await page.locator('iframe').evaluate((el,height)=>el.style.height=`${height}px`,await frame.locator('body').evaluate(el=>el.scrollHeight+100));
-  if(process.env.SCREENSHOT_DIR)await frame.locator('#organizerExtras').screenshot({path:path.join(process.env.SCREENSHOT_DIR,'qr-sharing-mobile.png')});
+  if(process.env.SCREENSHOT_DIR){
+    await page.setViewportSize({width:390,height:3000});
+    await frame.locator('#organizerExtras').screenshot({path:path.join(process.env.SCREENSHOT_DIR,'qr-sharing-mobile.png')});
+    await page.setViewportSize({width:390,height:844});
+  }
   await page.evaluate((id)=>window.roster={participants:[{playerId:id,alias:'Alice',status:'pending_payment'}],reservedCount:1,participantsCount:0,maxParticipants:2,spotsLeft:1},playerId);
   await frame.getByRole('button',{name:'Actualiser',exact:true}).click();await frame.getByText('1 places occupées · 1 places restantes',{exact:true}).waitFor();
   await frame.getByText('Alice — Accepté · paiement en attente',{exact:true}).waitFor();
