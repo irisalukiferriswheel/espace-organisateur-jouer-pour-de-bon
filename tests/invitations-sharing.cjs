@@ -21,6 +21,7 @@ const assert = require('node:assert/strict');
       if(m.type==='JPDB_ORGANIZER_REQUEST_EVENTS')send('JPDB_ORGANIZER_EVENTS',{events:[window.eventRow]});
       if(m.type==='JPDB_ORGANIZER_REQUEST_INVITATION_PLAN')send('JPDB_ORGANIZER_INVITATION_PLAN',{players:[],publicRegistration:false});
       if(m.type==='JPDB_ORGANIZER_REQUEST_INVITATIONS')send('JPDB_ORGANIZER_INVITATIONS',{invitations:window.invites});
+      if(m.type==='JPDB_ORGANIZER_REQUEST_PARTICIPANTS')send('JPDB_ORGANIZER_PARTICIPANTS',{participants:[],reservedCount:0,spotsLeft:10});
       if(m.type==='JPDB_ORGANIZER_SEARCH_PLAYERS'){
         if(window.failSearch){e.source.postMessage({source:'jpdb-wix',type:'JPDB_ORGANIZER_ERROR',requestId:m.requestId,message:'Search unavailable'},'*');return;}
         send('JPDB_ORGANIZER_PLAYERS',{players:[{id:'p1',alias:'Go friend',city:'Sherbrooke'},{id:'p2',alias:'Existing player',city:'Montreal'},{id:'p3',alias:'Declined player',city:'Quebec'}],nextCursor:null});
@@ -46,7 +47,7 @@ const assert = require('node:assert/strict');
     const { data, info } = await sharp(await qrImage.screenshot()).ensureAlpha().raw().toBuffer({resolveWithObject:true});
     assert.equal(decode(new Uint8ClampedArray(data),info.width,info.height).data, expected);
   }
-  await frame.getByRole('button', { name: 'Inviter des joueurs', exact: true }).click();
+  await frame.locator('#organizerExtras').getByRole('button', { name: 'Inviter des joueurs', exact: true }).click();
   await frame.locator('#sentInvitations').getByText('Acceptée', {exact:true}).waitFor();
   assert.equal(await frame.locator('#sentInvitations').getByText('Refusée', {exact:true}).count(),1);
   assert.equal((await page.evaluate(()=>window.calls)).filter(m=>m.type==='JPDB_ORGANIZER_SEND_INVITATIONS').length,0);

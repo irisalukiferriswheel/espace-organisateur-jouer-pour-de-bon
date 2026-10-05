@@ -20,6 +20,7 @@ const eventId='11111111-1111-4111-8111-111111111111',playerId='22222222-2222-422
         else send('JPDB_ORGANIZER_INVITATION_PLAN',window.plan);
       }
       if(m.type==='JPDB_ORGANIZER_REQUEST_PARTICIPANTS')send('JPDB_ORGANIZER_PARTICIPANTS',window.roster);
+      if(m.type==='JPDB_ORGANIZER_REQUEST_INVITATIONS')send('JPDB_ORGANIZER_INVITATIONS',{invitations:[]});
       if(['JPDB_ORGANIZER_SAVE_DRAFT','JPDB_ORGANIZER_UPDATE_DRAFT','JPDB_ORGANIZER_PUBLISH_EVENT'].includes(m.type)){
         window.plan={players:m.payload.invitedPlayerIds.map(id=>({id,alias:'Alice'})),publicRegistration:m.payload.publicRegistration};
         const published=m.type==='JPDB_ORGANIZER_PUBLISH_EVENT';
@@ -41,6 +42,9 @@ const eventId='11111111-1111-4111-8111-111111111111',playerId='22222222-2222-422
   await frame.locator('#langFrBtn').click();
   assert.equal((await page.evaluate(()=>calls)).some(c=>c.type==='JPDB_ORGANIZER_SEND_INVITATIONS'),false);
   await frame.locator('#saveDraftBtn').click();await frame.getByRole('button',{name:'Ouvrir le brouillon'}).waitFor();
+  assert.equal(await frame.locator('#organizerExtras').isVisible(),false);
+  for(const name of ['Lien et QR','Inviter des joueurs','Participants et places'])assert.equal(await frame.locator('.event-card').getByRole('button',{name,exact:true}).count(),0);
+  assert.equal((await page.evaluate(()=>calls)).some(c=>c.type==='JPDB_ORGANIZER_REQUEST_PARTICIPANTS'),false);
   const save=(await page.evaluate(()=>calls)).find(c=>c.type==='JPDB_ORGANIZER_SAVE_DRAFT');assert.deepEqual(save.payload.invitedPlayerIds,[playerId]);assert.equal(save.payload.publicRegistration,false);
   await page.evaluate(()=>window.failPlan=true);await frame.getByRole('button',{name:'Ouvrir le brouillon'}).click();await frame.locator('#retryInvitePlan').waitFor({state:'visible'});
   const before=(await page.evaluate(()=>calls)).filter(c=>c.type==='JPDB_ORGANIZER_UPDATE_DRAFT').length;await frame.locator('#saveDraftBtn').click();assert.equal((await page.evaluate(()=>calls)).filter(c=>c.type==='JPDB_ORGANIZER_UPDATE_DRAFT').length,before);
@@ -49,15 +53,23 @@ const eventId='11111111-1111-4111-8111-111111111111',playerId='22222222-2222-422
   await frame.locator('#publishBtn').click();await frame.locator('.event-qr').waitFor({state:'visible'});
   const qrUrl='https://www.jouerpourdebon.ca/competitions?jpdbEvent='+eventId;
   assert.equal(await frame.getByLabel('Lien d’inscription').inputValue(),qrUrl);
+  const publishedPanel=frame.locator('#organizerExtras');
+  await publishedPanel.getByText('0 places occupées · 2 places restantes',{exact:true}).waitFor();
+  assert.equal(await publishedPanel.getByRole('button',{name:'Inviter des joueurs',exact:true}).isEnabled(),true);
   assert.equal(new URL(await frame.getByRole('link',{name:'Facebook',exact:true}).getAttribute('href')).searchParams.get('u'),qrUrl);
   assert.ok(new URL(await frame.getByRole('link',{name:'WhatsApp',exact:true}).getAttribute('href')).searchParams.get('text').endsWith(qrUrl));
   if(process.env.QR_DECODER_MODULE&&process.env.SHARP_MODULE){const sharp=require(process.env.SHARP_MODULE),decode=require(process.env.QR_DECODER_MODULE);const {data,info}=await sharp(await frame.locator('.event-qr').screenshot()).ensureAlpha().raw().toBuffer({resolveWithObject:true});assert.equal(decode(new Uint8ClampedArray(data),info.width,info.height).data,qrUrl);}
   await page.setViewportSize({width:390,height:844});assert.equal(await frame.locator('body').evaluate(el=>el.scrollWidth<=el.clientWidth),true);
+  await page.locator('iframe').evaluate((el,height)=>el.style.height=`${height}px`,await frame.locator('body').evaluate(el=>el.scrollHeight+100));
   if(process.env.SCREENSHOT_DIR)await frame.locator('#organizerExtras').screenshot({path:path.join(process.env.SCREENSHOT_DIR,'qr-sharing-mobile.png')});
-  await frame.getByRole('button',{name:'Participants et places',exact:true}).click();await frame.getByText('0 places occupées · 2 places restantes',{exact:true}).waitFor();
   await page.evaluate((id)=>window.roster={participants:[{playerId:id,alias:'Alice',status:'pending_payment'}],reservedCount:1,participantsCount:0,maxParticipants:2,spotsLeft:1},playerId);
   await frame.getByRole('button',{name:'Actualiser',exact:true}).click();await frame.getByText('1 places occupées · 1 places restantes',{exact:true}).waitFor();
   await frame.getByText('Alice — Accepté · paiement en attente',{exact:true}).waitFor();
+  assert.equal(await publishedPanel.locator('.event-qr').isVisible(),true);
+  await publishedPanel.getByRole('button',{name:'Inviter des joueurs',exact:true}).click();
+  await frame.locator('#inviteQuery').waitFor({state:'visible'});
+  await publishedPanel.getByRole('button',{name:'Retour au lien et QR',exact:true}).click();
+  await publishedPanel.getByText('1 places occupées · 1 places restantes',{exact:true}).waitFor();
   if(process.env.SCREENSHOT_DIR)await frame.locator('#organizerExtras').screenshot({path:path.join(process.env.SCREENSHOT_DIR,'participants-mobile.png')});
   assert.deepEqual(errors,[]);console.log('PASS creation invite selection, persisted draft reload, failure protection, publish QR/social URLs, decoded QR, mobile, participant capacity refresh.');
  }finally{await browser.close();}

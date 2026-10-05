@@ -18,6 +18,10 @@ It contains no identity, session token, or invitation credential. Eligibility is
 enforced by the server and database regardless of who shares it. The completion
 panel supports copy/open, downloadable SVG QR, device sharing, Facebook, and
 WhatsApp. Sharing is initiated by the organizer.
+The same completion panel immediately offers the invite-player action and loads
+the participant list and remaining places from the owner-authorized backend.
+Organizers can open the player selector and return to the QR without leaving
+their event. Drafts expose none of these publication actions.
 
 Players accept or decline in their private profile. Acceptance atomically adds a
 registration, subject to profile, age, deadline, cause, and capacity checks.
@@ -50,8 +54,10 @@ Cause or plan save failures preserve the draft ID and prevent publication.
 ## Release and verification
 
 Requires matching API migrations/routes, Wix bridge, player dashboard, and event
-signup frontend. Deploy database/API first; then clients; enable both member
-registration flags only after the complete flow is verified. Paid events also
+signup frontend. The Wix companion mounts `player-event-registration/` at the
+canonical route; calendar PR #4 points there too, with the availability fix in
+calendar PR #6. Deploy database/API first; then matching clients; enable member
+registration only after the complete flow is verified. Paid events also
 require verified Zeffy setup. Preparing source does not publish or send invitations.
 
 Browser tests: `tests/draft-workflow.cjs`, `tests/invitations-sharing.cjs`, and
