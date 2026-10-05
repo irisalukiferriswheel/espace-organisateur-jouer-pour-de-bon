@@ -1,77 +1,64 @@
-# Invitations and event sharing
+# Organizer invitations and QR sharing
 
-This frontend builds on draft lifecycle PR 8. Release only together with the
-matching shared API and Wix bridge, coordinated by the registration/payment task.
-It does not grant event access or determine payment eligibility.
+The creation form selects up to 50 players using public aliases and cities.
+Saving a draft persists the selection and public-registration option; it does
+not send invitations. Reopening loads the saved selection. A load failure blocks
+saving until an explicit reload succeeds, preventing accidental loss of invitees.
+New forms are invitation-only by default. The organizer can explicitly open
+remaining places to other players.
 
-## Publication and sharing
+Publication saves the draft, links the approved cause, saves its invitation plan,
+then invokes the API publication transaction. Publication and dispatch are atomic
+and retry-safe. Only a correlated success response containing a published event,
+linked competition, and canonical registration URL shows the completion QR.
 
-`JPDB_ORGANIZER_DRAFT_SAVED` must echo `requestId` and return `payload.event.id`.
-A publication acknowledgment must contain `visibility: "published"`; otherwise
-the editor and entered values remain and no success message or QR is shown.
-The confirmed event is inserted into My Events immediately and a refresh is requested.
-`JPDB_ORGANIZER_EVENTS` must echo its list request's `requestId`; stale list
-responses are ignored. Legacy uncorrelated lists are accepted only before the first
-save, so an older bridge cannot erase a just-confirmed event with an outdated list.
+The QR encodes only the public event URL:
+`https://www.jouerpourdebon.ca/competitions?jpdbEvent=<event UUID>`.
+It contains no identity, session token, or invitation credential. Eligibility is
+enforced by the server and database regardless of who shares it. The completion
+panel supports copy/open, downloadable SVG QR, device sharing, Facebook, and
+WhatsApp. Sharing is initiated by the organizer.
 
-A shareable event must have `visibility: "published"`, a `competitionId`, and
-server-provided `registrationUrl`. Its permitted form is:
+Players accept or decline in their private profile. Acceptance atomically adds a
+registration, subject to profile, age, deadline, cause, and capacity checks.
+Free registrations confirm immediately. Paid registrations reserve a place for
+at most 30 minutes, bounded by the deadline/start; no payment is charged on
+acceptance. Expired holds release their place. Declining does not register.
 
-`https://www.jouerpourdebon.ca/competitions?jpdbEvent=<event id>`
+The participant panel shows confirmed registrations and active payment holds
+with authoritative remaining places. It refreshes on request and every 15 seconds
+while open. Only public aliases are exposed; contact data stays private.
 
-The UI does not invent a URL for a draft or an event missing its competition.
-QR generation runs locally; no event data goes to an external QR service.
-The share panel provides a copyable link, open link, and downloadable SVG QR.
-The server retains all current visibility, invitation, eligibility and payment rules.
-The unresolved public-versus-invitation-only QR policy is not changed here.
+## Integration contracts
 
-## Organizer message contract
+Requests retain `source: "jpdb-organizer"`, a unique `requestId`, and `payload`.
+Replies retain `source: "jpdb-wix"` and the matching ID. The immediate Wix parent
+and expected origin are required. Wix resolves the member server-side.
 
-The approved-cause picker reads the public Render `/v1/causes?lang=fr|en` endpoint
-(already filtered to approved canonical causes; rows need no `status` field).
-Draft payloads include `causeId` when selected. Wix must save, link that ID through
-`/v1/wix/organizer/events/:eventId/cause`, then publish; return `causeId` on event
-list/save responses. A legacy free-text cause is preserved and explicitly unresolved,
-never silently matched by name. Draft saving works during a cause-service failure;
-publication is blocked until an approved cause is selected. The backend revalidates
-approval to cover changes after the picker loaded.
+| Request | Reply | Purpose |
+| --- | --- | --- |
+| JPDB_ORGANIZER_SEARCH_PLAYERS | JPDB_ORGANIZER_PLAYERS | Search public players before or after first save |
+| JPDB_ORGANIZER_REQUEST_INVITATION_PLAN | JPDB_ORGANIZER_INVITATION_PLAN | Reload draft selections and access option |
+| JPDB_ORGANIZER_REQUEST_INVITATIONS | JPDB_ORGANIZER_INVITATIONS | Published event invitation status |
+| JPDB_ORGANIZER_SEND_INVITATIONS | JPDB_ORGANIZER_INVITATIONS_SENT | Explicit additional invitations |
+| JPDB_ORGANIZER_REQUEST_PARTICIPANTS | JPDB_ORGANIZER_PARTICIPANTS | Participants and remaining places |
 
-All requests use `source: "jpdb-organizer"`, `requestId`, and `payload`.
-Replies use `source: "jpdb-wix"` and the same `requestId`. The immediate Wix
-parent window is the only accepted sender. The Wix backend derives the organizer
-from its session; frontend identity or role claims must never grant access.
+Draft payloads include `invitedPlayerIds` and `publicRegistration`. Old clients
+omitting both retain the saved policy. Errors echo request IDs and safe messages.
+Cause or plan save failures preserve the draft ID and prevent publication.
 
-| Request | Payload | Reply | Reply payload |
-| --- | --- | --- | --- |
-| `JPDB_ORGANIZER_SEARCH_PLAYERS` | `{eventId,query,cursor}` | `JPDB_ORGANIZER_PLAYERS` | `{players:[{id,alias,city}],nextCursor}` |
-| `JPDB_ORGANIZER_REQUEST_INVITATIONS` | `{eventId}` | `JPDB_ORGANIZER_INVITATIONS` | `{invitations:[{playerId,alias,status}]}` |
-| `JPDB_ORGANIZER_SEND_INVITATIONS` | `{eventId,playerIds}` | `JPDB_ORGANIZER_INVITATIONS_SENT` | `{sentCount,invitations:[{playerId,alias,status}]}` |
+## Release and verification
 
-Errors use `JPDB_ORGANIZER_ERROR`, matching `requestId`, and a user-safe `message`.
-Search uses public aliases/cities only. Invitation management is available only
-for owned published events with linked competitions. Search is explicit, paginated,
-and requires two characters. Selection persists across searches, at most 50 per send.
-Sending requires an explicit click; viewing/opening/searching never sends invitations.
+Requires matching API migrations/routes, Wix bridge, player dashboard, and event
+signup frontend. Deploy database/API first; then clients; enable both member
+registration flags only after the complete flow is verified. Paid events also
+require verified Zeffy setup. Preparing source does not publish or send invitations.
 
-Backend requirements: enforce ownership, recipient eligibility and batch limits;
-atomically deduplicate repeated sends; do not reset an accepted or declined response;
-never register or charge on send/accept. Statuses displayed are created, sent,
-accepted, declined, revoked. Previously invited players cannot be resent from this UI.
-Player profiles own Accept/Decline. Only acceptance unlocks their registration action,
-subject to server checks, capacity and payment requirements.
+Browser tests: `tests/draft-workflow.cjs`, `tests/invitations-sharing.cjs`, and
+`tests/creation-invitations.cjs`. URL tests: `node --test tests/share-url.cjs`.
+Set `PLAYWRIGHT_MODULE`, optionally `BROWSER_CHANNEL` (Edge default). Independent
+QR decoding uses `QR_DECODER_MODULE` (jsQR) and `SHARP_MODULE`. Tests intercept
+synthetic data and create no live events, invitations, registrations, or payments.
 
-## Verification
-
-Run `node tests/draft-workflow.cjs` and `node tests/invitations-sharing.cjs` with
-Playwright available, and `node --test tests/share-url.cjs` for URL boundary checks.
-`PLAYWRIGHT_MODULE` and `BROWSER_CHANNEL` can select local
-installations (Edge by default). For an independent QR decode assertion, provide
-`QR_DECODER_MODULE` pointing to jsQR 1.4.0 and `SHARP_MODULE` pointing to sharp.
-All browser requests use intercepted synthetic fixtures; no live invitations,
-registrations, events or payments are created.
-
-QR library: vendored qrcode-generator 1.4.4 from the npm registry, MIT license.
-Tarball integrity: `sha512-HM7yY8O2ilqhmULxGMpcHSF1EhJJ9yBj8gvDEuZ6M+KGJ0YY2hKpnXvRD+hZPLrDVck3ExIGhmPtSdcjC+guuw==`.
-Keep `vendor/qrcode-LICENSE.txt` with the library.
-
-Production is not changed by preparing this frontend. GitHub Actions budget remains $0.
+QR library: vendored qrcode-generator 1.4.4, MIT. Retain its bundled license.
+No external QR service receives event data. Actions spending settings unchanged.

@@ -8,7 +8,7 @@ window.OrganizerExtras = (() => {
   const pending = new Map();
   let context, panel, currentEvent, currentShare, searchResults = [], invitations = [], nextCursor = null;
   let selected = new Map();
-  let sending = false, loading = false, generation = 0, requestSequence = 0, lastQuery = '';
+  let sending = false, loading = false, generation = 0, requestSequence = 0, lastQuery = '', participantTimer;
   const t = (fr, en) => context.language() === 'fr' ? fr : en;
   function el(tag, text, className) {
     const node = document.createElement(tag);
@@ -54,7 +54,7 @@ window.OrganizerExtras = (() => {
     else operation.resolve(message.payload || {});
     return true;
   }
-  function close() { if (sending) return; generation++; panel.hidden = true; currentEvent = null; currentShare = null; }
+  function close() { if (sending) return; clearTimeout(participantTimer); generation++; panel.hidden = true; currentEvent = null; currentShare = null; }
   function heading(title) {
     panel.replaceChildren(); panel.hidden = false;
     const row = el('div', '', 'form-heading'); const h = el('h3', title); h.tabIndex = -1;
@@ -84,6 +84,13 @@ window.OrganizerExtras = (() => {
     }));
     const download = el('a', t('Télécharger le QR', 'Download QR'), 'secondary'); download.href = image.src; download.download = `event-${event.id}.svg`; actions.append(download);
     const open = el('a', t('Ouvrir le lien', 'Open link'), 'secondary'); open.href = url; open.target = '_blank'; open.rel = 'noopener noreferrer'; actions.append(open);
+    if(navigator.share) actions.append(button(t('Partager…','Share…'),async()=>{
+      try{await navigator.share({title:event.title,text:t('Participez à cet événement Jouer Pour de Bon.','Join this Playing For Good event.'),url});}
+      catch(error){if(error.name!=='AbortError')status(t('Utilisez les liens de partage ou copiez le lien.','Use a sharing link or copy the link.'));}
+    }));
+    for(const [name,href] of [['Facebook',`https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(url)}`],['WhatsApp',`https://wa.me/?text=${encodeURIComponent(`${event.title}\n${url}`)}`]]) {
+      const social=el('a',name,'secondary');social.href=href;social.target='_blank';social.rel='noopener noreferrer';actions.append(social);
+    }
     panel.append(actions); h.focus(); panel.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
   }
   function inviteStatus(value) {
@@ -172,7 +179,7 @@ window.OrganizerExtras = (() => {
     generation++; const version = generation; currentEvent = event; currentShare = null;
     selected = new Map(); searchResults = []; invitations = []; nextCursor = null; loading = true;
     const h = heading(t('Inviter des joueurs', 'Invite players'));
-    panel.append(el('p', event.title), el('p', t('Sélectionnez des joueurs de l’annuaire. Ils accepteront ou refuseront dans leur profil privé. Une acceptation leur permettra ensuite de s’inscrire et de payer.', 'Select players from the directory. They accept or decline in their private profile. Acceptance then lets them register and pay.')));
+    panel.append(el('p', event.title), el('p', t('Sélectionnez des joueurs de l’annuaire. Ils accepteront ou refuseront dans leur profil privé. Accepter confirme une place gratuite ou réserve une place payante pendant 30 minutes au maximum, selon les disponibilités. Aucun paiement automatique.', 'Select players from the directory. They accept or decline in their private profile. Acceptance confirms a free place or holds a paid place for up to 30 minutes, subject to availability. No automatic payment.')));
     const form = el('form', '', 'invite-search');
     const label = el('label', t('Nom public du joueur', 'Player public name')); const input = el('input'); input.id = 'inviteQuery'; input.type = 'search'; input.maxLength = 100; label.append(input);
     const submit = button(t('Rechercher', 'Search'), () => search()); form.append(label, submit); form.addEventListener('submit', event => { event.preventDefault(); search(); }); panel.append(form);
@@ -190,8 +197,28 @@ window.OrganizerExtras = (() => {
     if (event.visibility !== 'published' || !event.competitionId) return;
     const row = el('div', '', 'event-card__actions');
     if (registrationUrl(event)) row.append(button(t('Lien et QR', 'Link and QR'), () => showShare(event)));
+    row.append(button(t('Participants et places','Participants and spots'),()=>showParticipants(event)));
     const invite = button(t('Inviter des joueurs', 'Invite players'), () => showInvitations(event)); invite.disabled = !context.authorized(); row.append(invite); card.append(row);
   }
   function published(event) { showShare(event); }
-  return { init, receive, appendActions, published, close, registrationUrl };
+  async function showParticipants(event) {
+    if(sending||!context.authorized())return;
+    clearTimeout(participantTimer);const version=++generation;currentEvent=null;currentShare=null;
+    const h=heading(t('Participants et places','Participants and spots'));panel.append(el('p',event.title));
+    const summary=el('p');const list=el('ul');panel.append(summary,list);let fetching=false;
+    const refresh=button(t('Actualiser','Refresh'),load);panel.append(refresh);h.focus();
+    async function load(){
+      if(fetching||version!==generation)return;fetching=true;refresh.disabled=true;clearTimeout(participantTimer);
+      try{
+        const data=await request('JPDB_ORGANIZER_REQUEST_PARTICIPANTS',{eventId:event.id},'JPDB_ORGANIZER_PARTICIPANTS');
+        if(version!==generation)return;
+        summary.textContent=t(`${data.reservedCount} places occupées · ${data.spotsLeft===null?'sans limite':data.spotsLeft+' places restantes'}`,`${data.reservedCount} spots taken · ${data.spotsLeft===null?'no limit':data.spotsLeft+' spots remaining'}`);
+        list.replaceChildren();for(const player of data.participants){list.append(el('li',`${player.alias||t('Joueur','Player')} — ${player.status==='confirmed'?t('Confirmé','Confirmed'):t('Accepté · paiement en attente','Accepted · payment pending')}`));}
+        if(!data.participants.length)list.append(el('li',t('Aucun participant pour le moment.','No participants yet.')));status('');
+      }catch(error){if(version===generation)status(error.message);}
+      finally{fetching=false;if(version===generation){refresh.disabled=false;participantTimer=setTimeout(()=>{if(!document.hidden)load();else participantTimer=setTimeout(load,15000);},15000);}}
+    }
+    await load();
+  }
+  return { init, receive, request, appendActions, published, close, registrationUrl };
 })();

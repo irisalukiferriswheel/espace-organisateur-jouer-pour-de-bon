@@ -19,6 +19,7 @@ const assert = require('node:assert/strict');
       const send=(type,payload)=>e.source.postMessage({source:'jpdb-wix',type,requestId:m.requestId,payload},'*');
       if(m.type==='JPDB_ORGANIZER_EMBED_READY')e.source.postMessage({source:'jpdb-wix',type:'JPDB_WIX_MEMBER_AUTH',loggedIn:true,isOrganisateur:true,memberId:'organizer',roles:['Organisateur']},'*');
       if(m.type==='JPDB_ORGANIZER_REQUEST_EVENTS')send('JPDB_ORGANIZER_EVENTS',{events:[window.eventRow]});
+      if(m.type==='JPDB_ORGANIZER_REQUEST_INVITATION_PLAN')send('JPDB_ORGANIZER_INVITATION_PLAN',{players:[],publicRegistration:false});
       if(m.type==='JPDB_ORGANIZER_REQUEST_INVITATIONS')send('JPDB_ORGANIZER_INVITATIONS',{invitations:window.invites});
       if(m.type==='JPDB_ORGANIZER_SEARCH_PLAYERS'){
         if(window.failSearch){e.source.postMessage({source:'jpdb-wix',type:'JPDB_ORGANIZER_ERROR',requestId:m.requestId,message:'Search unavailable'},'*');return;}
