@@ -39,6 +39,9 @@ const eventId='11111111-1111-4111-8111-111111111111',playerId='22222222-2222-422
   await frame.locator('#langEnBtn').click();
   await frame.getByRole('button',{name:'Find players',exact:true}).waitFor();
   assert.equal(await frame.getByRole('checkbox',{name:'Alice · Montreal'}).isChecked(),true);
+  assert.equal(await frame.locator('[name=title]').inputValue(),'Chess night');
+  assert.equal(await frame.locator('[name=capacity]').inputValue(),'2');
+  assert.equal(await frame.locator('#draftInviteQuery').inputValue(),'Al');
   await frame.locator('#langFrBtn').click();
   assert.equal((await page.evaluate(()=>calls)).some(c=>c.type==='JPDB_ORGANIZER_SEND_INVITATIONS'),false);
   await frame.locator('#saveDraftBtn').click();await frame.getByRole('button',{name:'Ouvrir le brouillon'}).waitFor();
@@ -51,7 +54,7 @@ const eventId='11111111-1111-4111-8111-111111111111',playerId='22222222-2222-422
   await page.evaluate(()=>window.failPlan=false);await frame.locator('#retryInvitePlan').click();await frame.locator('#draftInviteSelected').getByRole('button',{name:'Alice ×'}).waitFor();
   if(process.env.SCREENSHOT_DIR)await frame.locator('#draftInvitationPlan').screenshot({path:path.join(process.env.SCREENSHOT_DIR,'invite-selection.png')});
   await frame.locator('#publishBtn').click();await frame.locator('.event-qr').waitFor({state:'visible'});
-  const qrUrl='https://www.jouerpourdebon.ca/competitions?jpdbEvent='+eventId;
+  const qrUrl='https://www.jouerpourdebon.ca/competitions?jpdbEvent='+eventId+'&lang=fr';
   assert.equal(await frame.getByLabel('Lien d’inscription').inputValue(),qrUrl);
   const publishedPanel=frame.locator('#organizerExtras');
   await publishedPanel.getByText('0 places occupées · 2 places restantes',{exact:true}).waitFor();

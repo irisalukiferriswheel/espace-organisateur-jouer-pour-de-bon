@@ -9,7 +9,7 @@ const url = 'https://www.jouerpourdebon.ca/competitions?jpdbEvent=abc';
 const event = { id:'abc', competitionId:'competition', visibility:'published', registrationUrl:url };
 test('sharing requires a published linked event and the canonical matching URL',()=>{
   const read = scope.window.OrganizerExtras.registrationUrl;
-  assert.equal(read(event),url);
+  assert.equal(read(event),url+'&lang=fr');
   for(const invalid of [
     {...event,visibility:'draft'}, {...event,competitionId:null}, {...event,registrationUrl:null},
     {...event,registrationUrl:url+'&token=private'}, {...event,registrationUrl:url+'#secret'},

@@ -38,7 +38,8 @@ const copy = {
   }
 };
 
-let language = localStorage.getItem('pfg-organizer-language') || 'fr';
+let language = 'fr';
+try { language = localStorage.getItem('pfg-organizer-language') || 'fr'; } catch { /* Optional storage. */ }
 let organizerEvents = [];
 let pendingSave = null;
 let eventsList = null;
@@ -98,7 +99,8 @@ function setOrganizerControlsEnabled(enabled) {
 function setLanguage(nextLanguage) {
   language = copy[nextLanguage] ? nextLanguage : 'fr';
   OrganizerInvitePlan.translate();
-  localStorage.setItem('pfg-organizer-language', language);
+  OrganizerExtras.translate();
+  try { localStorage.setItem('pfg-organizer-language', language); } catch { /* Optional preference storage. */ }
   document.documentElement.lang = language;
   document.title = language === 'fr' ? 'Espace organisateur — Jouer Pour de Bon' : 'Organizer space — Playing For Good';
 
@@ -502,5 +504,15 @@ saveDraftBtn?.addEventListener('click', handleDraft);
 eventForm?.addEventListener('submit', handleSubmit);
 eventForm?.addEventListener('input', updatePreview);
 eventForm?.addEventListener('change', updatePreview);
-langFrBtn?.addEventListener('click', () => setLanguage('fr'));
-langEnBtn?.addEventListener('click', () => setLanguage('en'));
+langFrBtn?.addEventListener('click', () => chooseSiteLanguage('fr'));
+langEnBtn?.addEventListener('click', () => chooseSiteLanguage('en'));
+
+// Language-only bridge; existing form and calculation state stays in place.
+let siteLanguageController;
+function chooseSiteLanguage(code) {
+  if(siteLanguageController) siteLanguageController.choose(code);
+  else setLanguage(code);
+}
+import('./jpdbLocalization.js').then(({createLanguageController})=>{
+  siteLanguageController=createLanguageController(window,setLanguage,"pfg-organizer-language");
+});

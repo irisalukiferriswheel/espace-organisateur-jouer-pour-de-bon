@@ -9,10 +9,19 @@ window.OrganizerExtras = (() => {
   let context, panel, currentEvent, currentShare, searchResults = [], invitations = [], nextCursor = null;
   let selected = new Map();
   let sending = false, loading = false, generation = 0, requestSequence = 0, lastQuery = '', participantTimer;
-  const t = (fr, en) => context.language() === 'fr' ? fr : en;
+  const bindings=new Set();
+  const boxed=read=>({read,toString:read,[Symbol.toPrimitive]:read});
+  const t=(fr,en)=>boxed(()=>context.language()==='fr'?fr:en);
+  const tx=(key,params={})=>boxed(()=>window.OrganizerCatalog.text(context.language(),key,params));
+  function setText(node,value){const text=document.createTextNode(String(value));node.replaceChildren(text);if(value?.read)bindings.add({node:text,read:value.read});}
+  function setAttr(node,name,value){node.setAttribute(name,String(value));if(value?.read)bindings.add({node,attribute:name,read:value.read});}
+  function textNode(value){const node=document.createTextNode(String(value));if(value?.read)bindings.add({node,read:value.read});return node;}
+  function translate(){for(const binding of bindings){if(!binding.node.isConnected){bindings.delete(binding);continue;}if(binding.attribute)binding.node.setAttribute(binding.attribute,binding.read());else binding.node.textContent=binding.read();}updateSelection();refreshShareLanguage();}
+  function refreshShareLanguage(){if(!currentShare)return;const url=registrationUrl(currentShare);const field=panel.querySelector('input[readonly]'),image=panel.querySelector('.event-qr');if(!url||!field||!image)return;field.value=url;const qr=qrcode(0,'M');qr.addData(url);qr.make();image.src='data:image/svg+xml;charset=utf-8,'+encodeURIComponent(qr.createSvgTag({cellSize:6,margin:24}));for(const a of panel.querySelectorAll('a')){if(a.download)a.href=image.src;else if(a.href.startsWith('https://www.jouerpourdebon.ca/competitions'))a.href=url;else if(a.href.startsWith('https://www.facebook.com/'))a.href='https://www.facebook.com/sharer/sharer.php?u='+encodeURIComponent(url);else if(a.href.startsWith('https://wa.me/'))a.href='https://wa.me/?text='+encodeURIComponent(currentShare.title+'\n'+url);}currentShareUrl=url;}
+  let currentShareUrl='';
   function el(tag, text, className) {
     const node = document.createElement(tag);
-    if (text) node.textContent = text;
+    if (text) setText(node,text);
     if (className) node.className = className;
     return node;
   }
@@ -27,7 +36,7 @@ window.OrganizerExtras = (() => {
         || url.username || url.password || url.searchParams.get('jpdbEvent') !== event.id) return '';
       // The share URL carries only the stable event ID, never a private invite or session token.
       if ([...url.searchParams.keys()].length !== 1 || [...url.searchParams.keys()].some(key => key !== 'jpdbEvent') || url.hash) return '';
-      return url.href;
+      url.searchParams.set('lang',context?.language?.()==='en'?'en':'fr');return url.href;
     } catch { return ''; }
   }
   function init(options) {
@@ -35,14 +44,14 @@ window.OrganizerExtras = (() => {
     panel = el('section', '', 'organizer-extra-panel'); panel.id = 'organizerExtras'; panel.hidden = true;
     context.anchor.insertAdjacentElement('afterend', panel);
   }
-  function status(text) { const node = panel.querySelector('[role=status]'); if (node) node.textContent = text; }
+  function status(text) { const node = panel.querySelector('[role=status]'); if (node) setText(node,text); }
   function request(type, payload, replyType) {
     const requestId = `organizer-extra-${Date.now()}-${++requestSequence}`;
     return new Promise((resolve, reject) => {
-      const timer = setTimeout(() => { pending.delete(requestId); reject(new Error(t('Le service ne répond pas. Réessayez.', 'The service is not responding. Try again.'))); }, 20000);
+      const timer = setTimeout(() => { pending.delete(requestId); reject(new Error(tx("label_965b5a773284",{}))); }, 20000);
       pending.set(requestId, { resolve, reject, replyType, timer });
       if (!context.post(type, { requestId, payload })) {
-        clearTimeout(timer); pending.delete(requestId); reject(new Error(t('Ouvrez votre espace depuis Wix.', 'Open your organizer space from Wix.')));
+        clearTimeout(timer); pending.delete(requestId); reject(new Error(tx("label_170b713de2e2",{})));
       }
     });
   }
@@ -50,7 +59,7 @@ window.OrganizerExtras = (() => {
     const operation = pending.get(message.requestId);
     if (!operation || ![operation.replyType, 'JPDB_ORGANIZER_ERROR'].includes(message.type)) return false;
     clearTimeout(operation.timer); pending.delete(message.requestId);
-    if (message.type === 'JPDB_ORGANIZER_ERROR' || message.success === false) operation.reject(new Error(message.message || t('Opération impossible. Réessayez.', 'Unable to complete the request. Try again.')));
+    if (message.type === 'JPDB_ORGANIZER_ERROR' || message.success === false) operation.reject(new Error(message.message || tx("label_4c8a322090a3",{})));
     else operation.resolve(message.payload || {});
     return true;
   }
@@ -59,7 +68,7 @@ window.OrganizerExtras = (() => {
     clearTimeout(participantTimer);
     panel.replaceChildren(); panel.hidden = false;
     const row = el('div', '', 'form-heading'); const h = el('h3', title); h.tabIndex = -1;
-    const closeButton = button(t('Fermer', 'Close'), close, 'text-button'); closeButton.disabled = sending;
+    const closeButton = button(tx("label_711e5f2e198d",{}), close, 'text-button'); closeButton.disabled = sending;
     row.append(h, closeButton); panel.append(row);
     const message = el('p', '', 'form-message'); message.setAttribute('role', 'status'); panel.append(message);
     return h;
@@ -67,65 +76,65 @@ window.OrganizerExtras = (() => {
   function showShare(event) {
     if (sending || !context.authorized() || event?.visibility !== 'published' || !event?.competitionId) return;
     generation++; currentEvent = null; currentShare = event;
-    const h = heading(t('Partager votre événement', 'Share your event'));
+    const h = heading(tx("label_71f673c1b428",{}));
     panel.append(el('p', event.title));
-    const url = registrationUrl(event);
-    if (!url) { status(t('Publication enregistrée. Le lien d’inscription n’est pas encore disponible.', 'Publication saved. The registration link is not yet available.')); return; }
-    panel.append(el('p', t('Scannez ce code pour ouvrir l’événement et suivre les étapes d’inscription et de paiement. Les conditions d’accès de l’événement restent applicables.', 'Scan to open the event and follow the registration and payment steps. The event’s access requirements still apply.')));
+    const url = registrationUrl(event); currentShareUrl=url;
+    if (!url) { status(tx("label_5bbe71782a59",{})); return; }
+    panel.append(el('p', tx("label_ddc9a700ed00",{})));
     const qr = qrcode(0, 'M'); qr.addData(url); qr.make();
     const svg = qr.createSvgTag({ cellSize: 6, margin: 24 });
-    const image = el('img', '', 'event-qr'); image.alt = t('Code QR du lien d’inscription', 'Registration link QR code');
+    const image = el('img', '', 'event-qr'); setAttr(image,'alt',tx("label_52d432303296",{}));
     image.src = `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg)}`;
     panel.append(image);
-    const field = el('input'); field.readOnly = true; field.value = url; field.setAttribute('aria-label', t('Lien d’inscription', 'Registration link')); panel.append(field);
+    const field = el('input'); field.readOnly = true; field.value = url; setAttr(field,'aria-label',tx("label_2c71847149c4",{})); panel.append(field);
     const actions = el('div', '', 'event-card__actions');
-    actions.append(button(t('Copier le lien', 'Copy link'), async () => {
-      try { await navigator.clipboard.writeText(url); status(t('Lien copié.', 'Link copied.')); }
-      catch { field.focus(); field.select(); status(t('Sélectionnez et copiez le lien ci-dessus.', 'Select and copy the link above.')); }
+    actions.append(button(tx("label_b17133f7ab04",{}), async () => {
+      try { await navigator.clipboard.writeText(currentShareUrl); status(tx("label_f83520bd98f6",{})); }
+      catch { field.focus(); field.select(); status(tx("label_6781994c41f3",{})); }
     }));
-    const download = el('a', t('Télécharger le QR', 'Download QR'), 'secondary'); download.href = image.src; download.download = `event-${event.id}.svg`; actions.append(download);
-    const open = el('a', t('Ouvrir le lien', 'Open link'), 'secondary'); open.href = url; open.target = '_blank'; open.rel = 'noopener noreferrer'; actions.append(open);
-    if(navigator.share) actions.append(button(t('Partager…','Share…'),async()=>{
-      try{await navigator.share({title:event.title,text:t('Participez à cet événement Jouer Pour de Bon.','Join this Playing For Good event.'),url});}
-      catch(error){if(error.name!=='AbortError')status(t('Utilisez les liens de partage ou copiez le lien.','Use a sharing link or copy the link.'));}
+    const download = el('a', tx("label_e63708d57182",{}), 'secondary'); download.href = image.src; download.download = `event-${event.id}.svg`; actions.append(download);
+    const open = el('a', tx("label_b9be9b40262a",{}), 'secondary'); open.href = url; open.target = '_blank'; open.rel = 'noopener noreferrer'; actions.append(open);
+    if(navigator.share) actions.append(button(tx("label_fdd8bf47ddbe",{}),async()=>{
+      try{await navigator.share({title:event.title,text:String(tx("label_e470bcf16028",{})),url:currentShareUrl});}
+      catch(error){if(error.name!=='AbortError')status(tx("label_c29b6531c0bb",{}));}
     }));
     for(const [name,href] of [['Facebook',`https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(url)}`],['WhatsApp',`https://wa.me/?text=${encodeURIComponent(`${event.title}\n${url}`)}`]]) {
       const social=el('a',name,'secondary');social.href=href;social.target='_blank';social.rel='noopener noreferrer';actions.append(social);
     }
     panel.append(actions);
-    panel.append(button(t('Inviter des joueurs', 'Invite players'), () => showInvitations(event)));
-    panel.append(el('h4', t('Participants et places', 'Participants and spots')));
+    panel.append(button(tx("label_22b99acbce36",{}), () => showInvitations(event)));
+    panel.append(el('h4', tx("label_a41e32747f07",{})));
     mountParticipants(event);
     mountTournament(event);
     h.focus(); panel.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
   }
   function inviteStatus(value) {
     const labels = { created: ['En attente', 'Pending'], sent: ['Envoyée', 'Sent'], accepted: ['Acceptée', 'Accepted'], declined: ['Refusée', 'Declined'], revoked: ['Annulée', 'Revoked'], expired: ['Expirée', 'Expired'] };
-    return labels[value] ? t(...labels[value]) : t('En attente', 'Pending');
+    return labels[value] ? t(...labels[value]) : tx("label_2f6c8477e92b",{});
   }
   function renderInvitations() {
     const list = panel.querySelector('#sentInvitations'); if (!list) return;
     list.replaceChildren();
-    if (!invitations.length) { list.append(el('p', t('Aucune invitation envoyée.', 'No invitations sent.'))); return; }
+    if (!invitations.length) { list.append(el('p', tx("label_88f8a035ec5c",{}))); return; }
     for (const invite of invitations) {
-      const row = el('li'); row.append(el('span', invite.alias || invite.playerAlias || searchResults.find(player => player.id === invite.playerId)?.alias || t('Joueur invité', 'Invited player')), el('span', inviteStatus(invite.status), 'event-badge')); list.append(row);
+      const row = el('li'); row.append(el('span', invite.alias || invite.playerAlias || searchResults.find(player => player.id === invite.playerId)?.alias || tx("label_0c0c8a28b7e9",{})), el('span', inviteStatus(invite.status), 'event-badge')); list.append(row);
     }
   }
   function renderPlayers() {
     const list = panel.querySelector('#invitePlayerResults'); if (!list) return;
     list.replaceChildren();
-    if (!searchResults.length && !loading) list.append(el('p', t('Aucun joueur trouvé.', 'No players found.')));
+    if (!searchResults.length && !loading) list.append(el('p', tx("label_e440317ef1a6",{})));
     for (const player of searchResults) {
       const label = el('label', '', 'invite-player');
       const checkbox = el('input'); checkbox.type = 'checkbox'; checkbox.value = player.id;
       const existing = invitations.find(invite => invite.playerId === player.id);
       checkbox.checked = selected.has(player.id); checkbox.disabled = sending || Boolean(existing);
       checkbox.addEventListener('change', () => {
-        if (checkbox.checked && selected.size >= 50) { checkbox.checked = false; status(t('Sélectionnez au maximum 50 joueurs par envoi.', 'Select up to 50 players per batch.')); return; }
+        if (checkbox.checked && selected.size >= 50) { checkbox.checked = false; status(tx("label_7c0623957564",{})); return; }
         if (checkbox.checked) selected.set(player.id, player); else selected.delete(player.id);
         updateSelection();
       });
-      const details = el('span'); details.append(el('strong', player.alias || t('Joueur', 'Player')), el('small', player.city || ''));
+      const details = el('span'); details.append(el('strong', player.alias || tx("label_b80431a4642a",{})), el('small', player.city || ''));
       label.append(checkbox, details); if (existing) label.append(el('span', inviteStatus(existing.status), 'event-badge')); list.append(label);
     }
     const more = panel.querySelector('#inviteMore'); more.hidden = !nextCursor; more.disabled = loading || sending;
@@ -136,10 +145,10 @@ window.OrganizerExtras = (() => {
     summary.replaceChildren();
     for (const [id, player] of selected) {
       const remove = button(`${player.alias} ×`, () => { selected.delete(id); renderPlayers(); }, 'text-button');
-      remove.setAttribute('aria-label', t(`Retirer ${player.alias}`, `Remove ${player.alias}`)); remove.disabled = sending; summary.append(remove);
+      setAttr(remove,'aria-label',tx("label_c706a1d7bbe3",{p0:(player.alias)})); remove.disabled = sending; summary.append(remove);
     }
     const send = panel.querySelector('#sendInvitations'); send.disabled = sending || loading || !selected.size;
-    send.textContent = sending ? t('Envoi…', 'Sending…') : t(`Inviter ${selected.size} joueur(s)`, `Invite ${selected.size} player(s)`);
+    setText(send,sending ? tx("label_1ccef8a10ca7",{}) : tx("label_741148b133fc",{p0:(selected.size)}));
   }
   async function loadInvitations(version) {
     const data = await request(TYPES.list, { eventId: currentEvent.id }, TYPES.invitations);
@@ -151,10 +160,10 @@ window.OrganizerExtras = (() => {
   async function search(more = false) {
     if (loading || sending || !currentEvent) return;
     const query = panel.querySelector('#inviteQuery').value.trim();
-    if (query.length < 2) { status(t('Entrez au moins deux caractères du nom public.', 'Enter at least two characters of the public name.')); return; }
+    if (query.length < 2) { status(tx("label_dba94100d064",{})); return; }
     loading = true; const version = generation;
     const cursor = more && query === lastQuery ? nextCursor : null; lastQuery = query;
-    status(t('Recherche…', 'Searching…')); updateSelection();
+    status(tx("label_d074331c5d34",{})); updateSelection();
     try {
       const data = await request(TYPES.search, { eventId: currentEvent.id, query, cursor }, TYPES.players);
       if (version !== generation) return;
@@ -171,12 +180,12 @@ window.OrganizerExtras = (() => {
     try {
       const data = await request(TYPES.send, { eventId: currentEvent.id, playerIds: [...selected.keys()] }, TYPES.sent);
       if (version !== generation) return;
-      if (!Array.isArray(data.invitations) && !Number.isInteger(data.sentCount)) throw new Error(t('L’envoi n’a pas été confirmé. Vérifiez les invitations avant de réessayer.', 'Sending was not confirmed. Check the invitations before retrying.'));
+      if (!Array.isArray(data.invitations) && !Number.isInteger(data.sentCount)) throw new Error(tx("label_a95872104254",{}));
       selected.clear();
       if (Array.isArray(data.invitations)) { invitations = data.invitations; renderInvitations(); }
-      status(t('Invitations envoyées. Les joueurs pourront accepter ou refuser dans leur profil privé.', 'Invitations sent. Players can accept or decline in their private profile.'));
+      status(tx("label_67ffee32cb1b",{}));
       try { await loadInvitations(version); }
-      catch { if (version === generation) status(t('Envoi confirmé. Impossible d’actualiser les statuts; fermez puis rouvrez les invitations.', 'Sending confirmed. Unable to refresh statuses; close and reopen invitations.')); }
+      catch { if (version === generation) status(tx("label_9f0b444809dc",{})); }
     } catch (error) { if (version === generation) status(error.message); }
     finally { if (version === generation) { sending = false; panel.querySelectorAll('button, input').forEach(node => { node.disabled = false; }); renderPlayers(); } }
   }
@@ -184,18 +193,18 @@ window.OrganizerExtras = (() => {
     if (sending || !context.authorized() || event.visibility !== 'published' || !event.competitionId) return;
     generation++; const version = generation; currentEvent = event; currentShare = null;
     selected = new Map(); searchResults = []; invitations = []; nextCursor = null; loading = true;
-    const h = heading(t('Inviter des joueurs', 'Invite players'));
-    panel.append(button(t('Retour au lien et QR', 'Back to link and QR'), () => showShare(event)));
-    panel.append(el('p', event.title), el('p', t('Sélectionnez des joueurs de l’annuaire. Ils accepteront ou refuseront dans leur profil privé. Accepter confirme une place gratuite ou réserve une place payante pendant 30 minutes au maximum, selon les disponibilités. Aucun paiement automatique.', 'Select players from the directory. They accept or decline in their private profile. Acceptance confirms a free place or holds a paid place for up to 30 minutes, subject to availability. No automatic payment.')));
+    const h = heading(tx("label_22b99acbce36",{}));
+    panel.append(button(tx("label_75ba8a962223",{}), () => showShare(event)));
+    panel.append(el('p', event.title), el('p', tx("label_64863a210fae",{})));
     const form = el('form', '', 'invite-search');
-    const label = el('label', t('Nom public du joueur', 'Player public name')); const input = el('input'); input.id = 'inviteQuery'; input.type = 'search'; input.maxLength = 100; label.append(input);
-    const submit = button(t('Rechercher', 'Search'), () => search()); form.append(label, submit); form.addEventListener('submit', event => { event.preventDefault(); search(); }); panel.append(form);
+    const label = el('label', tx("label_99a0bad8dfb3",{})); const input = el('input'); input.id = 'inviteQuery'; input.type = 'search'; input.maxLength = 100; label.append(input);
+    const submit = button(tx("label_733d1c742675",{}), () => search()); form.append(label, submit); form.addEventListener('submit', event => { event.preventDefault(); search(); }); panel.append(form);
     const results = el('div'); results.id = 'invitePlayerResults'; panel.append(results);
-    const more = button(t('Afficher plus', 'Show more'), () => search(true)); more.id = 'inviteMore'; more.hidden = true; panel.append(more);
+    const more = button(tx("label_e65e777e28e9",{}), () => search(true)); more.id = 'inviteMore'; more.hidden = true; panel.append(more);
     const selection = el('div', '', 'invite-selection'); selection.id = 'inviteSelection'; panel.append(selection);
     const sendButton = button('', send, 'primary'); sendButton.id = 'sendInvitations'; panel.append(sendButton);
-    panel.append(el('h4', t('Invitations envoyées', 'Sent invitations'))); const sent = el('ul', '', 'sent-invitations'); sent.id = 'sentInvitations'; panel.append(sent);
-    updateSelection(); status(t('Chargement des invitations…', 'Loading invitations…')); h.focus(); panel.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    panel.append(el('h4', tx("label_b334d4641438",{}))); const sent = el('ul', '', 'sent-invitations'); sent.id = 'sentInvitations'; panel.append(sent);
+    updateSelection(); status(tx("label_d6e80fd7d3f7",{})); h.focus(); panel.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
     try { await loadInvitations(version); if (version === generation) status(''); }
     catch (error) { if (version === generation) status(error.message); }
     finally { if (version === generation) { loading = false; updateSelection(); } }
@@ -203,16 +212,16 @@ window.OrganizerExtras = (() => {
   function appendActions(card, event) {
     if (event.visibility !== 'published' || !event.competitionId) return;
     const row = el('div', '', 'event-card__actions');
-    if (registrationUrl(event)) row.append(button(t('Lien et QR', 'Link and QR'), () => showShare(event)));
-    row.append(button(t('Participants et places','Participants and spots'),()=>showParticipants(event)));
-    const invite = button(t('Inviter des joueurs', 'Invite players'), () => showInvitations(event)); invite.disabled = !context.authorized(); row.append(invite); card.append(row);
+    if (registrationUrl(event)) row.append(button(tx("label_6c3dbf45f8e2",{}), () => showShare(event)));
+    row.append(button(tx("label_a41e32747f07",{}),()=>showParticipants(event)));
+    const invite = button(tx("label_22b99acbce36",{}), () => showInvitations(event)); invite.disabled = !context.authorized(); row.append(invite); card.append(row);
   }
   function published(event) { showShare(event); }
   async function showParticipants(event) {
     if(sending||!context.authorized()||event?.visibility!=='published'||!event?.competitionId)return;
     ++generation;currentEvent=null;currentShare=null;
-    const h=heading(t('Participants et places','Participants and spots'));panel.append(el('p',event.title));
-    panel.append(button(t('Retour au lien et QR', 'Back to link and QR'), () => showShare(event)));
+    const h=heading(tx("label_a41e32747f07",{}));panel.append(el('p',event.title));
+    panel.append(button(tx("label_75ba8a962223",{}), () => showShare(event)));
     h.focus();mountTournament(event);await mountParticipants(event);
   }
   function mountTournament(event) {
@@ -228,7 +237,7 @@ window.OrganizerExtras = (() => {
       }catch(error){
         if(version===generation){
           const message=area.querySelector('[role=status]');
-          if(message)message.textContent=t('Modification non confirmée. Actualisez; vérifiez les inscriptions et les paiements en attente.','Change not confirmed. Refresh; check registrations and pending payments.');
+          if(message)setText(message,tx("label_b3b90fa4cb17",{}));
           area.querySelectorAll('button,select,input').forEach(node=>{node.disabled=false;});
           const finalize=area.querySelector('#finalizeTournament');
           if(finalize)finalize.disabled=!area.querySelector('#confirmRosterLock').checked||area.querySelector('#tournamentFormat').value!=='single_elimination';
@@ -236,36 +245,36 @@ window.OrganizerExtras = (() => {
       }finally{busy=false;}
     }
     function render(data) {
-      area.replaceChildren(el('h4',t('Tournoi et tableau','Tournament and bracket')));
+      area.replaceChildren(el('h4',tx("label_d9292f44d558",{})));
       const message=el('p');message.setAttribute('role','status');area.append(message);
-      const refresh=button(t('Actualiser le tournoi','Refresh tournament'),()=>run('JPDB_ORGANIZER_REQUEST_TOURNAMENT','JPDB_ORGANIZER_TOURNAMENT'));area.append(refresh);
-      if(!data){message.textContent=t('Chargement du tournoi…','Loading tournament…');return;}
+      const refresh=button(tx("label_dad197cd74a8",{}),()=>run('JPDB_ORGANIZER_REQUEST_TOURNAMENT','JPDB_ORGANIZER_TOURNAMENT'));area.append(refresh);
+      if(!data){setText(message,tx("label_0315a23646c0",{}));return;}
       if(!data.finalizedAt){
-        const label=el('label',t('Type de tournoi','Tournament type'));const select=el('select');select.id='tournamentFormat';
+        const label=el('label',tx("label_1ee3dca1a052",{}));const select=el('select');select.id='tournamentFormat';
         for(const [value,fr,en]of [['none','Sans tournoi','No tournament'],['single_elimination','Élimination simple','Single elimination']]){
           const option=el('option',t(fr,en));option.value=value;select.append(option);
         }
         select.value=data.format;label.append(select);area.append(label);
-        area.append(button(t('Enregistrer le format','Save format'),()=>run('JPDB_ORGANIZER_SAVE_TOURNAMENT','JPDB_ORGANIZER_TOURNAMENT_SAVED',{format:select.value})));
-        area.append(el('p',t('Invitez les joueurs, puis attendez leurs inscriptions confirmées. Seuls ces participants seront placés dans le tableau, par ordre d’inscription; les exemptions sont automatiques. De 2 à 256 participants.','Invite players, then wait for confirmed registrations. Only confirmed participants enter the bracket, seeded by registration order, with automatic byes. From 2 to 256 entrants.')));
+        area.append(button(tx("label_1c7aa7466ddc",{}),()=>run('JPDB_ORGANIZER_SAVE_TOURNAMENT','JPDB_ORGANIZER_TOURNAMENT_SAVED',{format:select.value})));
+        area.append(el('p',tx("label_305a8c8d416e",{})));
         if(data.format==='single_elimination'){
           const consent=el('label');const checkbox=el('input');checkbox.type='checkbox';checkbox.id='confirmRosterLock';
-          consent.append(checkbox,document.createTextNode(t(' Je confirme la liste finale. Fermer les inscriptions et verrouiller le tableau.',' I confirm the final roster. Close registration and lock the bracket.')));area.append(consent);
-          const finalize=button(t('Finaliser et générer le tableau','Finalize and generate bracket'),()=>{
+          consent.append(checkbox,textNode(tx("label_183a6471a36f",{})));area.append(consent);
+          const finalize=button(tx("label_59e2808ba850",{}),()=>{
             if(checkbox.checked&&select.value===data.format)run('JPDB_ORGANIZER_FINALIZE_TOURNAMENT','JPDB_ORGANIZER_TOURNAMENT_FINALIZED');
           },'primary');finalize.id='finalizeTournament';finalize.disabled=true;
           const validate=()=>{finalize.disabled=!checkbox.checked||select.value!==data.format;};
           checkbox.addEventListener('change',validate);select.addEventListener('change',validate);area.append(finalize);
         }
       }else{
-        area.append(el('p',t('Liste verrouillée; inscriptions fermées. Ce tableau ne sera pas régénéré.','Roster locked; registration closed. This bracket will not be regenerated.')));
-        const names=new Map((data.entrants||[]).map(p=>[p.seed,`${p.seed}. ${p.alias||t('Participant privé','Private participant')}${p.status==='confirmed'?'':t(' (retrait)',' (withdrawn)')}`]));
+        area.append(el('p',tx("label_5af93e303c16",{})));
+        const names=new Map((data.entrants||[]).map(p=>[p.seed,boxed(()=>`${p.seed}. ${p.alias||tx("label_2a1e06aea2a8",{})}${p.status==='confirmed'?'':tx("label_335397860f52",{})}`)]));
         for(const [roundIndex,round]of (data.rounds||[]).entries()){
-          area.append(el('h5',t(`Tour ${roundIndex+1}`,`Round ${roundIndex+1}`)));
+          area.append(el('h5',tx("label_a6ee655b777c",{p0:(roundIndex+1)})));
           const list=el('ol');
           for(const match of round){
-            const side=(seed,from)=>names.get(seed)||(roundIndex===0?t('Exemption','Bye'):t(`Gagnant du match ${from}`,`Winner of match ${from}`));
-            list.append(el('li',`${side(match.leftSeed,match.leftFromMatch)} — ${side(match.rightSeed,match.rightFromMatch)}${match.bye?t(' · Avance automatiquement',' · Advances automatically'):''}`));
+            const side=(seed,from)=>names.get(seed)||(roundIndex===0?tx("label_c0f23066ddfc",{}):tx("label_b399bc19f989",{p0:(from)}));
+            list.append(el('li',boxed(()=>`${side(match.leftSeed,match.leftFromMatch)} — ${side(match.rightSeed,match.rightFromMatch)}${match.bye?tx("label_df16b11c8524",{}):''}`)));
           }
           area.append(list);
         }
@@ -275,22 +284,22 @@ window.OrganizerExtras = (() => {
   }
   async function mountParticipants(event) {
     const version=generation;
-    const summary=el('p',t('Chargement des participants…','Loading participants…'));
+    const summary=el('p',tx("label_a4a27a29296f",{}));
     summary.id='participantSummary';summary.setAttribute('aria-live','polite');
     const list=el('ul');list.id='participantList';panel.append(summary,list);let fetching=false;
-    const refresh=button(t('Actualiser','Refresh'),load);panel.append(refresh);
+    const refresh=button(tx("label_d7d646faaecb",{}),load);panel.append(refresh);
     async function load(){
       if(fetching||version!==generation)return;fetching=true;refresh.disabled=true;clearTimeout(participantTimer);
       try{
         const data=await request('JPDB_ORGANIZER_REQUEST_PARTICIPANTS',{eventId:event.id},'JPDB_ORGANIZER_PARTICIPANTS');
         if(version!==generation)return;
-        summary.textContent=t(`${data.reservedCount} places occupées · ${data.spotsLeft===null?'sans limite':data.spotsLeft+' places restantes'}`,`${data.reservedCount} spots taken · ${data.spotsLeft===null?'no limit':data.spotsLeft+' spots remaining'}`);
-        list.replaceChildren();for(const player of data.participants){list.append(el('li',`${player.alias||t('Joueur','Player')} — ${player.status==='confirmed'?t('Confirmé','Confirmed'):t('Accepté · paiement en attente','Accepted · payment pending')}`));}
-        if(!data.participants.length)list.append(el('li',t('Aucun participant pour le moment.','No participants yet.')));
+        setText(summary,t(`${data.reservedCount} places occupées · ${data.spotsLeft===null?'sans limite':data.spotsLeft+' places restantes'}`,`${data.reservedCount} spots taken · ${data.spotsLeft===null?'no limit':data.spotsLeft+' spots remaining'}`));
+        list.replaceChildren();for(const player of data.participants){list.append(el('li',boxed(()=>`${player.alias||tx("label_b80431a4642a",{})} — ${player.status==='confirmed'?tx("label_1278c77084fd",{}):tx("label_2ff6fddceb5b",{})}`)));}
+        if(!data.participants.length)list.append(el('li',tx("label_1a603427ca41",{})));
       }catch(error){if(version===generation)summary.textContent=error.message;}
       finally{fetching=false;if(version===generation){refresh.disabled=false;participantTimer=setTimeout(()=>{if(!document.hidden)load();else participantTimer=setTimeout(load,15000);},15000);}}
     }
     await load();
   }
-  return { init, receive, request, appendActions, published, close, registrationUrl };
+  return { init, receive, request, appendActions, published, close, registrationUrl, translate };
 })();
