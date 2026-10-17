@@ -26,7 +26,7 @@ window.OrganizerExtras = (() => {
       if (url.origin !== 'https://www.jouerpourdebon.ca' || url.pathname !== '/competitions'
         || url.username || url.password || url.searchParams.get('jpdbEvent') !== event.id) return '';
       // The share URL carries only the stable event ID, never a private invite or session token.
-      if ([...url.searchParams.keys()].some(key => key !== 'jpdbEvent') || url.hash) return '';
+      if ([...url.searchParams.keys()].length !== 1 || [...url.searchParams.keys()].some(key => key !== 'jpdbEvent') || url.hash) return '';
       return url.href;
     } catch { return ''; }
   }
@@ -96,6 +96,7 @@ window.OrganizerExtras = (() => {
     panel.append(button(t('Inviter des joueurs', 'Invite players'), () => showInvitations(event)));
     panel.append(el('h4', t('Participants et places', 'Participants and spots')));
     mountParticipants(event);
+    mountTournament(event);
     h.focus(); panel.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
   }
   function inviteStatus(value) {
@@ -212,7 +213,65 @@ window.OrganizerExtras = (() => {
     ++generation;currentEvent=null;currentShare=null;
     const h=heading(t('Participants et places','Participants and spots'));panel.append(el('p',event.title));
     panel.append(button(t('Retour au lien et QR', 'Back to link and QR'), () => showShare(event)));
-    h.focus();await mountParticipants(event);
+    h.focus();mountTournament(event);await mountParticipants(event);
+  }
+  function mountTournament(event) {
+    const version=generation;
+    const area=el('section','','event-tournament');panel.append(area);
+    let busy=false;
+    async function run(type,replyType,payload={}) {
+      if(busy)return;busy=true;
+      area.querySelectorAll('button,select,input').forEach(node=>{node.disabled=true;});
+      try {
+        const data=await request(type,{eventId:event.id,...payload},replyType);
+        if(version===generation)render(data);
+      }catch(error){
+        if(version===generation){
+          const message=area.querySelector('[role=status]');
+          if(message)message.textContent=t('Modification non confirmée. Actualisez; vérifiez les inscriptions et les paiements en attente.','Change not confirmed. Refresh; check registrations and pending payments.');
+          area.querySelectorAll('button,select,input').forEach(node=>{node.disabled=false;});
+          const finalize=area.querySelector('#finalizeTournament');
+          if(finalize)finalize.disabled=!area.querySelector('#confirmRosterLock').checked||area.querySelector('#tournamentFormat').value!=='single_elimination';
+        }
+      }finally{busy=false;}
+    }
+    function render(data) {
+      area.replaceChildren(el('h4',t('Tournoi et tableau','Tournament and bracket')));
+      const message=el('p');message.setAttribute('role','status');area.append(message);
+      const refresh=button(t('Actualiser le tournoi','Refresh tournament'),()=>run('JPDB_ORGANIZER_REQUEST_TOURNAMENT','JPDB_ORGANIZER_TOURNAMENT'));area.append(refresh);
+      if(!data){message.textContent=t('Chargement du tournoi…','Loading tournament…');return;}
+      if(!data.finalizedAt){
+        const label=el('label',t('Type de tournoi','Tournament type'));const select=el('select');select.id='tournamentFormat';
+        for(const [value,fr,en]of [['none','Sans tournoi','No tournament'],['single_elimination','Élimination simple','Single elimination']]){
+          const option=el('option',t(fr,en));option.value=value;select.append(option);
+        }
+        select.value=data.format;label.append(select);area.append(label);
+        area.append(button(t('Enregistrer le format','Save format'),()=>run('JPDB_ORGANIZER_SAVE_TOURNAMENT','JPDB_ORGANIZER_TOURNAMENT_SAVED',{format:select.value})));
+        area.append(el('p',t('Invitez les joueurs, puis attendez leurs inscriptions confirmées. Seuls ces participants seront placés dans le tableau, par ordre d’inscription; les exemptions sont automatiques. De 2 à 256 participants.','Invite players, then wait for confirmed registrations. Only confirmed participants enter the bracket, seeded by registration order, with automatic byes. From 2 to 256 entrants.')));
+        if(data.format==='single_elimination'){
+          const consent=el('label');const checkbox=el('input');checkbox.type='checkbox';checkbox.id='confirmRosterLock';
+          consent.append(checkbox,document.createTextNode(t(' Je confirme la liste finale. Fermer les inscriptions et verrouiller le tableau.',' I confirm the final roster. Close registration and lock the bracket.')));area.append(consent);
+          const finalize=button(t('Finaliser et générer le tableau','Finalize and generate bracket'),()=>{
+            if(checkbox.checked&&select.value===data.format)run('JPDB_ORGANIZER_FINALIZE_TOURNAMENT','JPDB_ORGANIZER_TOURNAMENT_FINALIZED');
+          },'primary');finalize.id='finalizeTournament';finalize.disabled=true;
+          const validate=()=>{finalize.disabled=!checkbox.checked||select.value!==data.format;};
+          checkbox.addEventListener('change',validate);select.addEventListener('change',validate);area.append(finalize);
+        }
+      }else{
+        area.append(el('p',t('Liste verrouillée; inscriptions fermées. Ce tableau ne sera pas régénéré.','Roster locked; registration closed. This bracket will not be regenerated.')));
+        const names=new Map((data.entrants||[]).map(p=>[p.seed,`${p.seed}. ${p.alias||t('Participant privé','Private participant')}${p.status==='confirmed'?'':t(' (retrait)',' (withdrawn)')}`]));
+        for(const [roundIndex,round]of (data.rounds||[]).entries()){
+          area.append(el('h5',t(`Tour ${roundIndex+1}`,`Round ${roundIndex+1}`)));
+          const list=el('ol');
+          for(const match of round){
+            const side=(seed,from)=>names.get(seed)||(roundIndex===0?t('Exemption','Bye'):t(`Gagnant du match ${from}`,`Winner of match ${from}`));
+            list.append(el('li',`${side(match.leftSeed,match.leftFromMatch)} — ${side(match.rightSeed,match.rightFromMatch)}${match.bye?t(' · Avance automatiquement',' · Advances automatically'):''}`));
+          }
+          area.append(list);
+        }
+      }
+    }
+    render(null);run('JPDB_ORGANIZER_REQUEST_TOURNAMENT','JPDB_ORGANIZER_TOURNAMENT');
   }
   async function mountParticipants(event) {
     const version=generation;

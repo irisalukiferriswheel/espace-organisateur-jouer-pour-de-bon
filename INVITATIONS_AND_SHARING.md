@@ -68,3 +68,22 @@ synthetic data and create no live events, invitations, registrations, or payment
 
 QR library: vendored qrcode-generator 1.4.4, MIT. Retain its bundled license.
 No external QR service receives event data. Actions spending settings unchanged.
+# Tournament extension (local, October 17)
+
+The published event's sharing/participants panel now has a separate tournament
+selector: no tournament or single elimination. Save the format, finish invitations
+and confirmed registrations, then explicitly confirm the final roster and click
+Finalize and generate bracket. Active payment holds block finalization. The API
+closes registration and persists the bracket once; retry/reopen never reseeds it.
+Byes advance automatically; private aliases remain hidden. Seeds follow registration
+order, and duplicate names are supported. Result entry is not part of this change.
+
+Requires the tournament migration/API extension to shared API PR #72 and the Wix
+bridge extension to PR #34. Deploy neither frontend alone. Keep the coordinated
+registration activation flag off until staging and real authenticated Wix checks
+pass. Full release and multi-session test gates are in API `docs/EVENT_TOURNAMENT.md`.
+
+`tests/tournament.cjs` checks format save/reopen, explicit confirmation, failed
+finalization recovery, QR decoding/download, byes, FR/EN, private aliases and mobile.
+It uses Playwright (Edge), pngjs and jsqr from test tooling; use PLAYWRIGHT_MODULE
+and NODE_PATH to point at installed tooling. It creates only synthetic browser data.

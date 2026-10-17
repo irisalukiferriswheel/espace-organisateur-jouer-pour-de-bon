@@ -13,6 +13,7 @@ test('sharing requires a published linked event and the canonical matching URL',
   for(const invalid of [
     {...event,visibility:'draft'}, {...event,competitionId:null}, {...event,registrationUrl:null},
     {...event,registrationUrl:url+'&token=private'}, {...event,registrationUrl:url+'#secret'},
+    {...event,registrationUrl:url+'&jpdbEvent=other'},
     {...event,registrationUrl:url.replace('=abc','=other')},
     {...event,registrationUrl:url.replace('https:','http:')},
     {...event,registrationUrl:url.replace('www.jouerpourdebon.ca','evil.test')},
