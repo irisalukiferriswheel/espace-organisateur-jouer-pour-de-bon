@@ -19,7 +19,7 @@ async function loadDirectory(){
  if(version!==requestVersion)return;players=rows.map(p=>p.alias);directoryState=players.length?'loaded':'noPublic';
  }catch{if(version===requestVersion)directoryState='error';}finally{clearTimeout(timer);if(version===requestVersion)render();}
 }
-$('source').onchange=()=>{mode=$('source').value;++requestVersion;if(controller)controller.abort();selected.clear();locked=false;$('search').value='';$('playerStatus').textContent='';if(mode==='public')loadDirectory();else{players=[...samples];selected=new Set([0,1,2]);directoryState='demoLoaded';render();}};
+$('source').onchange=()=>{mode=$('source').value;++requestVersion;if(controller)controller.abort();selected.clear();locked=false;$('search').value='';$('playerStatus').textContent='';if(mode==='public')loadDirectory();else{players=[...samples];selected=new Set([0,1,2].slice(0,capacity()));directoryState='demoLoaded';render();}};
 $('reload').onclick=loadDirectory;
 function node(tag,text,cls){const n=document.createElement(tag);if(text)n.textContent=text;if(cls)n.className=cls;return n;}
 function capacity(){return Math.min(256,Math.max(2,Math.floor(Number($('capacity').value))||2));}
@@ -37,6 +37,7 @@ function render(){
  $('capacity').disabled=locked;$('format').disabled=locked;$('generate').disabled=locked||$('format').value==='none'||selected.size<2;$('edit').hidden=!locked;
  if(locked){$('bracketStatus').textContent=t('locked');drawBracket();}else{$('bracket').replaceChildren();$('bracketStatus').textContent=selected.size<2?t('need'):'';}
  $('qr').alt=t('demoQr');
+ dispatchEvent(new CustomEvent('jpdb-preview-selection',{detail:{mode,language:lang,title:$('eventName').value,capacity:capacity(),invited:mode==='demo'?[...selected]:[]}}));
 }
 function drawBracket(){
  const names=[...selected].map(id=>players[id]);let size=2;while(size<names.length)size*=2;
@@ -50,7 +51,7 @@ function drawBracket(){
 $('fr').onclick=()=>{lang='fr';render();};$('en').onclick=()=>{lang='en';render();};$('search').oninput=render;$('eventName').oninput=render;
 $('capacity').oninput=()=>{if($('capacity').value==='')return;$('capacity').value=Math.max(capacity(),selected.size);render();};$('format').onchange=render;
 $('generate').onclick=()=>{if(selected.size>=2&&$('format').value==='single'){locked=true;render();}};
-$('edit').onclick=()=>{locked=false;render();};$('reset').onclick=()=>{selected=mode==='demo'?new Set([0,1,2]):new Set();locked=false;$('search').value='';$('capacity').value=8;$('format').value='single';$('eventName').value='La soirée des stratèges — DÉMO';$('playerStatus').textContent='';$('shareStatus').textContent='';render();};
+$('edit').onclick=()=>{locked=false;render();};$('reset').onclick=()=>{selected=mode==='demo'?new Set([0,1,2].slice(0,capacity())):new Set();locked=false;$('search').value='';$('capacity').value=8;$('format').value='single';$('eventName').value='La soirée des stratèges — DÉMO';$('playerStatus').textContent='';$('shareStatus').textContent='';render();};
 $('copy').onclick=async()=>{try{await navigator.clipboard.writeText(url);$('shareStatus').textContent=t('copied');}catch{$('shareStatus').textContent=t('copyFail');}};
 $('shareDemo').onclick=async()=>{try{if(!navigator.share)throw Error();await navigator.share({title:'JPDB — DEMO',text:t('notice'),url});$('shareStatus').textContent=t('shared');}catch(e){if(e.name!=='AbortError')$('shareStatus').textContent=t('shareFail');}};
 const qr=qrcode(0,'M');qr.addData(url);qr.make();const src='data:image/svg+xml;charset=utf-8,'+encodeURIComponent(qr.createSvgTag({cellSize:6,margin:24}));$('qr').src=src;$('download').href=src;

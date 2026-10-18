@@ -65,3 +65,31 @@ bracket and illustrative QR behavior remain local and explicitly labeled.
 Run preview-tests/composition.cjs to compare every original field's name, type,
 required state, options and order, and verify original behaviors, FR/EN context,
 appended section order, mobile layout and zero write requests.
+
+## Separate fictional test pages
+
+- preview.html: complete original organizer form, appended public picker, local bracket and share tools; fictional mode includes an explicit publication simulation.
+- player-space-preview.html: separate test personal-space page with invitation accept/decline, joined test events and provisional bracket access.
+- calendar-preview.html: separate test calendar with event details and capacity-aware joining.
+
+Use the in-page links in the same tab. Only fictional numeric character IDs,
+invitation statuses, registrations, capacity and public-access flag are stored
+under sessionStorage key jpdb-fictional-journey-v1. No real public-directory
+identities, entered event title, profile data or secrets are saved or put in URLs.
+The test uses a fixed fictional event title. Reset clears this state; the browser
+session retains it across page navigation/reloads. It is not shared with other
+users/devices or production. New tabs can have separate/copy-on-open sessions.
+
+Invitations do not reserve capacity. The free fictional scenario supports accept,
+decline, outsider join, duplicate/full/restricted checks and provisional brackets.
+No payment or eligibility check is represented as a real success. Browser-local
+checks are not evidence of database concurrency guarantees.
+
+Existing player-profile PR2 remains open and was inspected for invitation,
+joined-event/schedule and response concepts. No production profile availability
+is claimed and that repository is untouched. This implementation is additive to
+the organizer preview repository only.
+
+Run preview-tests/journey.cjs for actual cross-page navigation, acceptance,
+decline, calendar joining, duplicate/full/restricted handling, invitation
+capacity, profile bracket access, session consistency, privacy and zero writes.
