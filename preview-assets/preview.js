@@ -33,7 +33,7 @@ function drawBracket(){
  }
 }
 $('fr').onclick=()=>{lang='fr';render();};$('en').onclick=()=>{lang='en';render();};$('search').oninput=render;$('eventName').oninput=render;
-$('capacity').onchange=()=>{$('capacity').value=Math.max(capacity(),selected.size);render();};$('format').onchange=render;
+$('capacity').oninput=()=>{if($('capacity').value==='')return;$('capacity').value=Math.max(capacity(),selected.size);render();};$('format').onchange=render;
 $('generate').onclick=()=>{if(selected.size>=2&&$('format').value==='single'){locked=true;render();}};
 $('edit').onclick=()=>{locked=false;render();};$('reset').onclick=()=>{selected=new Set([0,1,2]);locked=false;$('search').value='';$('capacity').value=8;$('format').value='single';$('eventName').value='La soirée des stratèges — DÉMO';$('playerStatus').textContent='';$('shareStatus').textContent='';render();};
 $('copy').onclick=async()=>{try{await navigator.clipboard.writeText(url);$('shareStatus').textContent=t('copied');}catch{$('shareStatus').textContent=t('copyFail');}};
