@@ -46,3 +46,22 @@ response regressions. Screenshots can be written by setting
 
 Live read verified on 2026-10-18: HTTP 200, success=true, 12 public profiles,
 GitHub Pages origin permitted by CORS. No real names are stored in test fixtures.
+
+## Complete original organizer composition
+
+The revised preview.html preserves the complete original index.html form and uses
+the unchanged app.js, styles.css and wix-sandbox-bridge.js. Its form opens by
+default for review; the original create/close, preview and language interactions
+remain. Original save/publish authorization is unchanged; standalone preview
+does not gain Wix authorization. Tests never submit these actions.
+
+New sections follow the complete original form in an automatically sized
+preview-workflow.html iframe. Styling is isolated to prevent collisions. The
+iframe receives only local title, capacity and language context from the same
+origin parent; it does not receive identity or authorization. Its duplicate
+intro and abbreviated event fields are hidden in composed mode. New selection,
+bracket and illustrative QR behavior remain local and explicitly labeled.
+
+Run preview-tests/composition.cjs to compare every original field's name, type,
+required state, options and order, and verify original behaviors, FR/EN context,
+appended section order, mobile layout and zero write requests.

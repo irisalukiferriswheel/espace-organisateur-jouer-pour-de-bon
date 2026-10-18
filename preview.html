@@ -1,16 +1,162 @@
 <!doctype html>
 <html lang="fr">
-<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Démo organisateur · Jouer pour de bon</title><link rel="stylesheet" href="preview-assets/preview.css"></head>
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Espace organisateur — Jouer Pour de Bon</title>
+  <link rel="stylesheet" href="styles.css" />
+  <link rel="stylesheet" href="preview-assets/composition.css">
+</head>
 <body>
-<main>
-  <header><a class="brand" href="#">Jouer pour de bon<span><span data-t="brandCaption"></span></span></a><nav aria-label="Language"><button id="fr" aria-pressed="true">FR</button><button id="en" aria-pressed="false">EN</button></nav></header>
-  <aside class="notice" data-t="notice"></aside>
-  <section class="hero"><div><p class="eyebrow" data-t="eyebrow"></p><h1 data-t="title"></h1><p data-t="intro"></p></div><div class="hero-badge"><span>♟</span><strong data-t="sample"></strong><small data-t="sampleCaption"></small></div></section>
-  <div class="layout"><div class="main-column">
-  <section class="card"><div class="section-title"><span class="step">01</span><div><h2 data-t="details"></h2><p data-t="detailsHint"></p></div></div><div class="fields"><label><span data-t="eventName"></span><input id="eventName" value="La soirée des stratèges — DÉMO" maxlength="100"></label><label><span data-t="capacity"></span><input id="capacity" type="number" value="8" min="2" max="8"></label></div></section>
-  <section class="card"><div class="section-title"><span class="step">02</span><div><h2 data-t="players"></h2><p data-t="playersHint"></p></div></div><label><span data-t="source"></span><select id="source"><option value="public" data-t="publicSource"></option><option value="demo" data-t="demoSource"></option></select></label><p id="directoryStatus" role="status"></p><button id="reload" data-t="reload"></button><label class="search"><span data-t="search"></span><input id="search" type="search"></label><div id="directory" class="directory"></div><div class="roster-heading"><h3 data-t="roster"></h3><span id="count" class="pill"></span></div><div id="selected" class="chips"></div><p id="playerStatus" role="status"></p><p class="fine" data-t="privacy"></p></section>
-  <section class="card"><div class="section-title"><span class="step">03</span><div><h2 data-t="tournament"></h2><p data-t="tournamentHint"></p></div></div><label><span data-t="format"></span><select id="format"><option value="single" data-t="single"></option><option value="none" data-t="none"></option></select></label><p class="fine" data-t="seeding"></p><div class="actions"><button class="primary" id="generate" data-t="generate"></button><button id="edit" data-t="edit" hidden></button></div><p id="bracketStatus" role="status"></p><div id="bracket" class="bracket"></div></section>
-  <section class="card share-card" id="share"><div class="section-title"><span class="step">04</span><div><h2 data-t="share"></h2><p data-t="shareHint"></p></div></div><div class="share-grid"><div class="qr-wrap"><img id="qr" alt="Demo QR"><strong data-t="demoQr"></strong></div><div><p data-t="destination"></p><code id="url">https://example.org/jpdb-demo</code><p class="fine" data-t="noSignup"></p><div class="actions"><button id="copy" data-t="copy"></button><a id="download" class="button" download="jpdb-demo-qr.svg" data-t="download"></a><button id="shareDemo" data-t="shareDemo"></button></div><p id="shareStatus" role="status"></p></div></div></section>
-  </div><aside class="summary card"><p class="eyebrow" data-t="summary"></p><h2 id="summaryTitle"></h2><div class="metric"><strong id="summaryCount">3</strong><span data-t="samplePlayers"></span></div><p id="summaryFormat"></p><hr><p data-t="previewOnly"></p><button id="reset" data-t="reset"></button></aside></div>
-  <footer data-t="footer"></footer>
-</main><script src="preview-assets/qrcode-1.4.4.js"></script><script src="preview-assets/preview.js"></script></body></html>
+  <main class="shell">
+    <section class="hero">
+      <div class="hero-topbar">
+        <p class="eyebrow" data-i18n="brand">Jouer Pour de Bon</p>
+        <div class="language-switcher" aria-label="Choix de langue">
+          <button id="langFrBtn" class="secondary lang-btn is-active" type="button" aria-pressed="true">FR</button>
+          <button id="langEnBtn" class="secondary lang-btn" type="button" aria-pressed="false">EN</button>
+        </div>
+      </div>
+      <h1 data-i18n="heroTitle">Espace organisateur</h1>
+      <p class="intro" data-i18n="heroIntro">Créez et gérez vos événements. Cette version reste un prototype : les boutons de sauvegarde et publication ne modifient encore aucune donnée réelle.</p>
+      <button id="createEventBtn" class="primary" type="button" data-i18n="createEvent">+ Créer un événement</button>
+    </section>
+
+    <section class="panel" aria-labelledby="eventsTitle">
+      <div class="panel-header">
+        <div>
+          <p class="eyebrow" data-i18n="dashboard">Tableau de bord</p>
+          <h2 id="eventsTitle" data-i18n="myEvents">Mes événements</h2>
+        </div>
+        <span class="status" data-i18n="securePrototype">Prototype sécurisé</span>
+      </div>
+
+      <div id="emptyState" class="empty-state">
+        <h3 data-i18n="noEvents">Aucun événement pour le moment</h3>
+        <p data-i18n="noEventsBody">Quand l’API sera connectée, seuls les événements appartenant à l’organisateur connecté apparaîtront ici.</p>
+      </div>
+
+      <section id="createPanel" class="create-panel" hidden>
+        <div class="form-heading">
+          <div>
+            <p class="eyebrow" data-i18n="newEvent">Nouvel événement</p>
+            <h3 data-i18n="createEventTitle">Créer un événement</h3>
+          </div>
+          <button id="closeCreateBtn" class="text-button" type="button" data-i18n="close">Fermer</button>
+        </div>
+
+        <form id="eventForm">
+          <fieldset>
+            <legend data-i18n="generalLegend">1. Informations générales</legend>
+            <div class="form-grid">
+              <label class="full-width"><span data-i18n="eventName">Nom de l’événement</span>
+                <input name="title" type="text" required data-placeholder-fr="Ex. Basketball Knockout — Sherbrooke" data-placeholder-en="Ex. Basketball Knockout — Sherbrooke" placeholder="Ex. Basketball Knockout — Sherbrooke" />
+              </label>
+              <label><span data-i18n="activity">Jeu / activité</span>
+                <input name="activityType" type="text" required data-placeholder-fr="Ex. Basketball Knockout" data-placeholder-en="Ex. Basketball Knockout" placeholder="Ex. Basketball Knockout" />
+              </label>
+              <label><span data-i18n="format">Format</span>
+                <select name="format">
+                  <option value="in_person" data-i18n="inPerson">Présentiel</option>
+                  <option value="online" data-i18n="online">En ligne</option>
+                  <option value="hybrid" data-i18n="hybrid">Hybride</option>
+                </select>
+              </label>
+              <label class="full-width"><span data-i18n="description">Description</span>
+                <textarea name="description" rows="5" data-placeholder-fr="Expliquez le déroulement, les règles principales et ce que les joueurs doivent savoir." data-placeholder-en="Explain how the event works, the main rules, and what players need to know." placeholder="Expliquez le déroulement, les règles principales et ce que les joueurs doivent savoir."></textarea>
+              </label>
+              <label class="full-width"><span data-i18n="imageUrl">Image de l’événement — URL (optionnel)</span>
+                <input name="imageUrl" type="url" placeholder="https://…" />
+              </label>
+            </div>
+          </fieldset>
+
+          <fieldset>
+            <legend data-i18n="datePlaceLegend">2. Date et lieu</legend>
+            <div class="form-grid">
+              <label><span data-i18n="date">Date</span><input name="date" type="date" required /></label>
+              <label><span data-i18n="timezone">Fuseau horaire</span>
+                <select name="timezone">
+                  <option value="America/Toronto">America/Toronto</option>
+                  <option value="America/Montreal">America/Montreal</option>
+                  <option value="UTC">UTC</option>
+                </select>
+              </label>
+              <label><span data-i18n="startTime">Heure de début</span><input name="startTime" type="time" required /></label>
+              <label><span data-i18n="endTime">Heure de fin</span><input name="endTime" type="time" required /></label>
+              <label><span data-i18n="city">Ville</span><input name="city" type="text" required data-placeholder-fr="Ex. Sherbrooke" data-placeholder-en="Ex. Sherbrooke" placeholder="Ex. Sherbrooke" /></label>
+              <label><span data-i18n="region">Province / région</span><input name="region" type="text" data-placeholder-fr="Ex. Québec" data-placeholder-en="Ex. Quebec" placeholder="Ex. Québec" /></label>
+              <label class="full-width"><span data-i18n="venue">Lieu / adresse</span><input name="venue" type="text" data-placeholder-fr="Nom du lieu et adresse complète" data-placeholder-en="Venue name and full address" placeholder="Nom du lieu et adresse complète" /></label>
+            </div>
+          </fieldset>
+
+          <fieldset>
+            <legend data-i18n="participationLegend">3. Participation</legend>
+            <div class="form-grid">
+              <label><span data-i18n="fee">Prix d’inscription</span><input name="fee" type="number" min="0" step="0.01" required placeholder="10.00" /></label>
+              <label><span data-i18n="currency">Devise</span>
+                <select name="currency"><option value="CAD">CAD</option><option value="USD">USD</option><option value="EUR">EUR</option></select>
+              </label>
+              <label><span data-i18n="capacity">Nombre maximum de joueurs</span><input name="capacity" type="number" min="2" step="1" placeholder="12" /></label>
+              <label><span data-i18n="deadline">Date limite d’inscription</span><input name="registrationDeadline" type="datetime-local" /></label>
+              <label><span data-i18n="minimumAge">Âge minimum</span><input name="minimumAge" type="number" min="0" step="1" placeholder="0" /></label>
+              <label><span data-i18n="skillLevel">Niveau recommandé</span>
+                <select name="skillLevel">
+                  <option value="all" data-i18n="allLevels">Tous niveaux</option>
+                  <option value="beginner" data-i18n="beginner">Débutant</option>
+                  <option value="intermediate" data-i18n="intermediate">Intermédiaire</option>
+                  <option value="advanced" data-i18n="advanced">Avancé</option>
+                </select>
+              </label>
+            </div>
+          </fieldset>
+
+          <fieldset>
+            <legend data-i18n="causeLegend">4. Cause soutenue</legend>
+            <div class="form-grid">
+              <label class="full-width"><span data-i18n="cause">Cause</span><input name="cause" type="text" required data-placeholder-fr="Ex. Amis de la terre" data-placeholder-en="Ex. Friends of the Earth" placeholder="Ex. Amis de la terre" /></label>
+              <div class="info-box full-width">
+                <strong data-i18n="pfgRule">Règle Jouer Pour de Bon</strong>
+                <p data-i18n="pfgRuleBody">La logique de répartition des fonds sera appliquée et vérifiée côté backend. L’organisateur ne pourra pas modifier les règles financières de la plateforme.</p>
+              </div>
+            </div>
+          </fieldset>
+
+          <fieldset>
+            <legend data-i18n="contactLegend">5. Organisation et contact</legend>
+            <div class="form-grid">
+              <label class="full-width"><span data-i18n="contactLink">Lien de contact ou réseau social</span><input name="contactUrl" type="url" placeholder="https://…" /></label>
+              <div class="info-box full-width">
+                <strong data-i18n="organizer">Organisateur</strong>
+                <p data-i18n="organizerBody">L’identité de l’organisateur sera remplie automatiquement à partir du compte connecté. Elle ne sera pas sélectionnable manuellement.</p>
+              </div>
+            </div>
+          </fieldset>
+
+          <section class="preview-card" aria-labelledby="previewTitle">
+            <p class="eyebrow" data-i18n="preview">Aperçu</p>
+            <h4 id="previewTitle" data-i18n-default="eventPreview">Votre événement</h4>
+            <p id="previewSummary">Remplissez le nom, la ville et la date pour voir un résumé ici.</p>
+          </section>
+
+          <div class="form-actions">
+            <button id="saveDraftBtn" class="secondary" type="button" data-i18n="saveDraft">Enregistrer comme brouillon</button>
+            <button id="publishBtn" class="primary" type="submit" data-i18n="publish">Publier l’événement</button>
+          </div>
+
+        </form>
+      </section>
+      <p id="formMessage" class="form-message" aria-live="polite"></p>
+    </section>
+    <section class="preview-additions" aria-labelledby="additionTitle">
+      <h2 id="additionTitle">Participants, tournoi et partage</h2>
+      <p id="additionNotice">Outils supplémentaires : lecture du répertoire public. La sélection et le tableau restent locaux ; aucune invitation ni inscription n’est envoyée.</p>
+      <iframe id="workflowFrame" src="preview-workflow.html?embedded=1" title="Participants, tournoi et partage" loading="eager"></iframe>
+    </section>
+  </main>
+
+  <script src="app.js"></script>
+  <script src="wix-sandbox-bridge.js"></script>
+  <script src="preview-assets/composition.js"></script>
+</body>
+</html>
