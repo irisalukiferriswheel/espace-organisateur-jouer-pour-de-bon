@@ -14,7 +14,6 @@
  function sync(){
   const en=document.documentElement.lang==='en';
   document.getElementById('additionTitle').textContent=en?'Participants, tournament and sharing':'Participants, tournoi et partage';
-  document.getElementById('additionNotice').textContent=en?'Additional tools: reads the public directory. Selection and bracket stay local; no invitations or registrations are sent.':'Outils supplémentaires : lecture du répertoire public. La sélection et le tableau restent locaux ; aucune invitation ni inscription n’est envoyée.';
   frame.title=en?'Participants, tournament and sharing':'Participants, tournoi et partage';
   frame.contentWindow?.postMessage({source:'jpdb-preview-context',language:en?'en':'fr',title:form.elements.title.value,capacity:form.elements.capacity.value,city:form.elements.city.value,game:form.elements.activityType.value},origin);
  }
