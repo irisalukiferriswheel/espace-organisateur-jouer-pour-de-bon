@@ -2,6 +2,15 @@
 (()=>{
  const frame=document.getElementById('workflowFrame'),form=document.getElementById('eventForm');
  const origin=location.origin;
+ // Move the existing nodes, retaining their IDs, listeners and form ownership.
+ const bottom=document.createElement('section');bottom.id='organizerFinalActions';bottom.className='panel organizer-final-actions';
+ const preview=form.querySelector('.preview-card'),actions=form.querySelector('.form-actions');
+ for(const button of actions.querySelectorAll('button'))button.setAttribute('form',form.id);
+ bottom.append(preview,actions,document.getElementById('formMessage'));
+ document.querySelector('.preview-additions').after(bottom);
+ const editor=document.getElementById('createPanel');
+ const syncVisibility=()=>{bottom.hidden=editor.hidden;};
+ new MutationObserver(syncVisibility).observe(editor,{attributes:true,attributeFilter:['hidden']});
  function sync(){
   const en=document.documentElement.lang==='en';
   document.getElementById('additionTitle').textContent=en?'Participants, tournament and sharing':'Participants, tournoi et partage';
@@ -18,5 +27,6 @@
  new MutationObserver(sync).observe(document.documentElement,{attributes:true,attributeFilter:['lang']});
  // Show the unchanged original form immediately in this review page only.
  document.getElementById('createPanel').hidden=false;document.getElementById('emptyState').hidden=true;
+ syncVisibility();
  sync();
 })();
