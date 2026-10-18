@@ -15,7 +15,7 @@ const fs=require('node:fs'),path=require('node:path'),assert=require('node:asser
  // Test native association/validation with a local-only submit observer; never call the live action handler.
  await page.evaluate(()=>{window.testSubmits=0;document.getElementById('eventForm').addEventListener('submit',e=>{e.preventDefault();e.stopImmediatePropagation();window.testSubmits++;},true);document.getElementById('publishBtn').disabled=false;document.getElementById('saveDraftBtn').disabled=false;});
  await page.locator('#publishBtn').click();assert.equal(await page.evaluate(()=>window.testSubmits),0);
- for(const [name,value]of Object.entries({activityType:'Chess',date:'2027-05-15',startTime:'12:00',endTime:'14:00',city:'Example',fee:'0',cause:'Fictional cause'}))await page.locator(`[name=${name}]`).fill(value);
+ for(const [name,value]of Object.entries({activityType:'Chess',date:'2027-05-15',startTime:'12:00',endTime:'14:00',city:'Example',fee:'0'}))await page.locator(`[name=${name}]`).fill(value);
  await page.locator('#publishBtn').click();assert.equal(await page.evaluate(()=>window.testSubmits),1);
  await page.locator('[name=title]').press('Enter');assert.equal(await page.evaluate(()=>window.testSubmits),2);
  await page.locator('#saveDraftBtn').focus();await page.keyboard.press('Tab');assert.equal(await page.locator('#publishBtn').evaluate(n=>n===document.activeElement),true);
