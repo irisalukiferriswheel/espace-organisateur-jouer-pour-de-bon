@@ -34,11 +34,11 @@ const eventId='11111111-1111-4111-8111-111111111111',playerId='22222222-2222-422
   await frame.locator('[name=date]').fill('2099-01-01');await frame.locator('[name=startTime]').fill('13:00');await frame.locator('[name=endTime]').fill('15:00');await frame.locator('[name=city]').fill('Montreal');
   await frame.locator('[name=fee]').fill('0');await frame.locator('[name=capacity]').fill('2');
   await frame.locator('#organizerCause').selectOption(playerId);
-  await frame.locator('#draftInviteQuery').fill('Al');await frame.getByRole('button',{name:'Rechercher des joueurs',exact:true}).click();await frame.getByRole('checkbox',{name:'Alice · Montreal'}).check();
-  assert.equal(await frame.locator('#openRemainingSpots').isChecked(),false);
+  await frame.locator('#draftInviteQuery').fill('Al');await frame.getByRole('button',{name:'Rechercher des joueurs',exact:true}).click();await frame.getByRole('checkbox',{name:'Alice',exact:true}).check();
+  assert.equal(await frame.locator('#openRemainingSpots').isChecked(),false); const search=(await page.evaluate(()=>calls)).find(c=>c.type==='JPDB_ORGANIZER_SEARCH_PLAYERS');assert.equal(search.payload.city,'Montreal');assert.equal(search.payload.game,'Chess');
   await frame.locator('#langEnBtn').click();
   await frame.getByRole('button',{name:'Find players',exact:true}).waitFor();
-  assert.equal(await frame.getByRole('checkbox',{name:'Alice · Montreal'}).isChecked(),true);
+  assert.equal(await frame.getByRole('checkbox',{name:'Alice',exact:true}).isChecked(),true);
   await frame.locator('#langFrBtn').click();
   assert.equal((await page.evaluate(()=>calls)).some(c=>c.type==='JPDB_ORGANIZER_SEND_INVITATIONS'),false);
   await frame.locator('#saveDraftBtn').click();await frame.getByRole('button',{name:'Ouvrir le brouillon'}).waitFor();
@@ -78,3 +78,4 @@ const eventId='11111111-1111-4111-8111-111111111111',playerId='22222222-2222-422
   assert.deepEqual(errors,[]);console.log('PASS creation invite selection, persisted draft reload, failure protection, publish QR/social URLs, decoded QR, mobile, participant capacity refresh.');
  }finally{await browser.close();}
 })().catch(e=>{console.error(e);process.exit(1)});
+

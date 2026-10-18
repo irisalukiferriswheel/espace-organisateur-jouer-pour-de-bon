@@ -14,7 +14,7 @@ window.OrganizerInvitePlan = (() => {
         if(input.checked&&selected.size>=50){input.checked=false;message(t('Maximum de 50 invitations.','Choose up to 50 invitees.'));return;}
         if(input.checked)selected.set(player.id,player);else selected.delete(player.id);render();
       });
-      label.append(input,node('span',`${player.alias||t('Joueur','Player')}${player.city?' · '+player.city:''}`));list.append(label);
+      label.append(input,node('span',player.alias||t('Joueur','Player')));list.append(label);
     }
     const chips=box.querySelector('#draftInviteSelected');chips.replaceChildren();
     for(const player of selected.values()) {
@@ -28,9 +28,11 @@ window.OrganizerInvitePlan = (() => {
     if(busy||!ready)return;
     const query=box.querySelector('#draftInviteQuery').value.trim();
     if(query.length<2){message(t('Entrez au moins deux caractères.','Enter at least two characters.'));return;}
+    const city=context.form.elements.city.value.trim(),game=context.form.elements.activityType.value.trim();
+    if(!city||!game){message(t('Indiquez la ville et le jeu avant de chercher des joueurs.','Enter the city and game before searching for players.'));return;}
     const version=generation;busy=true;render();message(t('Recherche…','Searching…'));
     try {
-      const data=await OrganizerExtras.request('JPDB_ORGANIZER_SEARCH_PLAYERS',{query,cursor:more?nextCursor:null},'JPDB_ORGANIZER_PLAYERS');
+      const data=await OrganizerExtras.request('JPDB_ORGANIZER_SEARCH_PLAYERS',{query,city,game,cursor:more?nextCursor:null},'JPDB_ORGANIZER_PLAYERS');
       if(version!==generation)return;
       results=more?[...new Map([...results,...data.players].map(p=>[p.id,p])).values()]:data.players;
       nextCursor=data.nextCursor||null;message(results.length?'':t('Aucun joueur trouvé.','No players found.'));
