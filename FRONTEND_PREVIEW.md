@@ -93,3 +93,21 @@ the organizer preview repository only.
 Run preview-tests/journey.cjs for actual cross-page navigation, acceptance,
 decline, calendar joining, duplicate/full/restricted handling, invitation
 capacity, profile bracket access, session consistency, privacy and zero writes.
+
+## Invitation eligibility (frontend only)
+
+The public picker requires BOTH event city and event game. The existing public
+API exposes city labels and game slug/nameFr/nameEn, not a canonical city ID.
+Comparison uses Unicode NFKC, trimmed/collapsed whitespace and case folding;
+accents remain significant. It uses exact equality, never fuzzy/substring matching.
+The event game must equal one of a profile's game slug or localized game names.
+Missing city, event game or game interests fails closed. Multiple interests work.
+
+Changing event city/game refilters immediately, removes newly ineligible selected
+profiles with a visible explanation, and invalidates their bracket preview. A
+late directory response is evaluated against the latest criteria. Only public
+names are shown; city/interests are read for filtering, not rendered as a profile.
+No extra restriction is applied to the fictional calendar self-join scenario.
+Fictional demo identities remain an explicit separate scenario. This frontend
+filter is not authoritative server enforcement; no production invitation write
+endpoint, database policy, schema or backend behavior was changed.
