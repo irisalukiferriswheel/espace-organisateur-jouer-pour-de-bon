@@ -3,8 +3,8 @@ const fs=require('node:fs'),path=require('node:path'),assert=require('node:asser
 (async()=>{const browser=await chromium.launch({headless:true,channel:'msedge'});try{
  const page=await browser.newPage({viewport:{width:1280,height:1000}}),errors=[],requests=[];
  page.on('pageerror',e=>errors.push(e.message));page.on('request',r=>requests.push(r.url()));
- await page.route('**/*',r=>{const url=new URL(r.request().url());assert.equal(url.origin,'https://preview.test');const file=url.pathname==='/'?'preview.html':url.pathname.slice(1);return r.fulfill({body:fs.readFileSync(path.join(__dirname,'..',file)),contentType:file.endsWith('.js')?'text/javascript':file.endsWith('.css')?'text/css':'text/html; charset=utf-8'});});
- await page.goto('https://preview.test/');assert.equal(await page.locator('.card').count(),5);assert.equal(await page.locator('#summaryCount').innerText(),'3');
+ await page.route('**/*',r=>{const url=new URL(r.request().url());if(url.hostname==='jouer-pour-de-bon-api.onrender.com')return r.fulfill({json:{success:true,data:[]}});assert.equal(url.origin,'https://preview.test');const file=url.pathname==='/'?'preview.html':url.pathname.slice(1);return r.fulfill({body:fs.readFileSync(path.join(__dirname,'..',file)),contentType:file.endsWith('.js')?'text/javascript':file.endsWith('.css')?'text/css':'text/html; charset=utf-8'});});
+ await page.goto('https://preview.test/');await page.locator('#source').selectOption('demo');assert.equal(await page.locator('.card').count(),5);assert.equal(await page.locator('#summaryCount').innerText(),'3');
  await page.locator('#search').fill('Robin');await page.locator('#directory input').check();assert.equal(await page.locator('#summaryCount').innerText(),'4');
  await page.locator('#search').fill('');await page.locator('#capacity').fill('4');await page.locator('#capacity').dispatchEvent('change');
  await page.getByRole('checkbox',{name:'SA Sacha',exact:true}).click();
@@ -20,7 +20,7 @@ const fs=require('node:fs'),path=require('node:path'),assert=require('node:asser
  await page.locator('#edit').click();await page.locator('#format').selectOption('none');assert.equal(await page.locator('#generate').isDisabled(),true);assert.equal(await page.locator('.match').count(),0);
  await page.locator('#reset').click();await page.locator('#generate').click();await page.setViewportSize({width:390,height:844});assert.equal(await page.locator('body').evaluate(n=>n.scrollWidth<=innerWidth),true);
  if(process.env.SCREENSHOT_DIR)await page.screenshot({path:path.join(process.env.SCREENSHOT_DIR,'organizer-frontend-mobile.png'),fullPage:true});
- await page.reload();assert.equal(await page.locator('.match').count(),0);assert.equal(await page.locator('#summaryCount').innerText(),'3');
- assert.deepEqual(errors,[]);assert.ok(requests.every(u=>u.startsWith('https://preview.test/')));
+ await page.reload();await page.locator('#source').selectOption('demo');assert.equal(await page.locator('.match').count(),0);assert.equal(await page.locator('#summaryCount').innerText(),'3');
+ assert.deepEqual(errors,[]);assert.ok(requests.every(u=>u.startsWith('https://preview.test/')||u==='https://jouer-pour-de-bon-api.onrender.com/v1/public/players'));
  console.log('PASS frontend-only preview: fictional picker/capacity, FR/EN state, bracket/byes/edit, demo QR decode/download, mobile, reload reset, no external requests.');
  }finally{await browser.close();}})().catch(e=>{console.error(e);process.exitCode=1;});
