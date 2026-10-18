@@ -1,0 +1,18 @@
+const {chromium}=require(process.env.PLAYWRIGHT_MODULE||'playwright');
+const fs=require('node:fs'),path=require('node:path'),assert=require('node:assert/strict');
+(async()=>{const browser=await chromium.launch({headless:true,channel:'msedge'});try{
+ const page=await browser.newPage(),errors=[];page.on('pageerror',e=>errors.push(e.message));let state='ok',reads=0,resolveSlow;
+ await page.route('https://preview.test/**',r=>{const file=new URL(r.request().url()).pathname.slice(1)||'preview-workflow.html';return r.fulfill({body:fs.readFileSync(path.join(__dirname,'..',file)),contentType:file.endsWith('.js')?'text/javascript':file.endsWith('.css')?'text/css':'text/html; charset=utf-8'});});
+ await page.route('https://jouer-pour-de-bon-api.onrender.com/**',async r=>{reads++;assert.equal(r.request().method(),'GET');assert.equal(r.request().url(),'https://jouer-pour-de-bon-api.onrender.com/v1/public/players');assert.equal(r.request().headers().authorization,undefined);
+ if(state==='slow')await new Promise(resolve=>resolveSlow=resolve);
+ if(state==='error')return r.fulfill({status:503,json:{success:false}});
+ if(state==='bad')return r.fulfill({json:{success:true,data:[{id:'x',email:'PRIVATE'}]}});
+ return r.fulfill({json:{success:true,data:state==='empty'?[]:[{id:'1',alias:'Public One',city:'Montréal',games:[{slug:'chess'}],email:'HIDDEN_EMAIL'},{id:'2',alias:'<b>Public Two</b>',city:'Montréal',games:[{slug:'chess'}]}]}});});
+ await page.goto('https://preview.test/');await page.locator('#eventCity').fill('Montréal');await page.locator('#eventGame').fill('chess');await page.locator('#directoryStatus').filter({hasText:'chargé'}).waitFor();assert.equal(await page.locator('#directory input').count(),2);assert.equal(await page.locator('#summaryCount').innerText(),'0');assert.ok(!(await page.locator('body').innerText()).includes('HIDDEN_'));assert.equal(await page.locator('#directory b').count(),0);
+ await page.locator('#directory input').nth(0).check();await page.locator('#directory input').nth(1).check();await page.locator('#generate').click();assert.equal(await page.locator('.match').count(),1);
+ state='empty';await page.locator('#reload').click();await page.locator('#directoryStatus').filter({hasText:'Aucun profil'}).waitFor();assert.equal(await page.locator('#directory input').count(),0);assert.equal(await page.locator('#summaryCount').innerText(),'0');
+ for(const value of ['error','bad']){state=value;await page.locator('#reload').click();await page.locator('#directoryStatus').filter({hasText:'indisponible'}).waitFor();assert.equal(await page.locator('#directory input').count(),0);}
+ state='slow';await page.locator('#reload').click();await page.locator('#directoryStatus').filter({hasText:'Chargement'}).waitFor();assert.equal(await page.locator('#reload').isDisabled(),true);await page.locator('#source').selectOption('demo');if(resolveSlow)resolveSlow();assert.equal(await page.locator('#directory input').count(),8);assert.equal(await page.locator('#summaryCount').innerText(),'3');
+ state='ok';await page.locator('#source').selectOption('public');await page.locator('#directoryStatus').filter({hasText:'chargé'}).waitFor();assert.equal(await page.locator('#directory input').count(),2);assert.equal(await page.locator('#summaryCount').innerText(),'0');await page.locator('#en').click();assert.ok((await page.locator('.notice').innerText()).includes('real public directory'));assert.deepEqual(errors,[]);assert.ok(reads>=6);
+ console.log('PASS public directory: GET-only, public-name projection, escaped text, local bracket, loading/empty/error/invalid response, stale demo switch, retry and FR/EN.');
+ }finally{await browser.close();}})().catch(e=>{console.error(e);process.exitCode=1;});

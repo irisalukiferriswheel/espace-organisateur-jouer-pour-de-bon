@@ -1,0 +1,23 @@
+const {chromium}=require(process.env.PLAYWRIGHT_MODULE||'playwright');
+const fs=require('node:fs'),path=require('node:path'),assert=require('node:assert/strict');
+(async()=>{const browser=await chromium.launch({headless:true,channel:'msedge'});try{
+ const page=await browser.newPage({viewport:{width:1200,height:1000}}),errors=[],writes=[];
+ page.on('pageerror',e=>errors.push(e.message));page.on('request',r=>{if(r.method()!=='GET')writes.push(r.url());});
+ await page.route('https://preview.test/**',r=>{const file=new URL(r.request().url()).pathname.slice(1)||'preview.html';return r.fulfill({body:fs.readFileSync(path.join(__dirname,'..',file)),contentType:file.endsWith('.js')?'text/javascript':file.endsWith('.css')?'text/css':'text/html; charset=utf-8'});});
+ await page.route('https://jouer-pour-de-bon-api.onrender.com/**',r=>r.fulfill({json:{success:true,data:[]}}));
+ const schema=()=>page.locator('#eventForm [name]').evaluateAll(nodes=>nodes.map(n=>({name:n.name,tag:n.tagName,type:n.type,required:n.required,options:n.options?[...n.options].map(o=>o.value):null})));
+ await page.goto('https://preview.test/index.html');const baseline=await schema();const baselineLegends=await page.locator('#eventForm legend').allTextContents();
+ await page.goto('https://preview.test/preview.html');assert.deepEqual(await schema(),baseline);assert.deepEqual(await page.locator('#eventForm legend').allTextContents(),baselineLegends);assert.equal(await page.locator('#createPanel').isVisible(),true);
+ assert.equal(await page.locator('#saveDraftBtn').isDisabled(),true);assert.equal(await page.locator('#publishBtn').isDisabled(),true);
+ await page.locator('[name=title]').fill('Soirée des stratèges — exemple');await page.locator('[name=activityType]').fill('Échecs');await page.locator('[name=description]').fill('Un exemple local pour revoir le formulaire complet.');await page.locator('[name=date]').fill('2027-05-15');await page.locator('[name=city]').fill('Montréal');await page.locator('[name=capacity]').fill('12');await page.locator('[name=fee]').fill('10');
+ await page.locator('[name=participationMode]').selectOption('competition');assert.ok((await page.locator('#previewTitle').innerText()).includes('stratèges'));
+ const child=page.frameLocator('#workflowFrame');await child.locator('#directoryStatus').filter({hasText:'Aucun profil'}).waitFor();await child.locator('#source').selectOption('demo');
+ await page.locator('#langEnBtn').click();await child.getByRole('button',{name:'Generate demo bracket',exact:true}).waitFor();assert.equal(await page.locator('[name=title]').inputValue(),'Soirée des stratèges — exemple');assert.equal(await page.locator('[name=participationMode]').inputValue(),'competition');assert.equal(await child.locator('#capacity').inputValue(),'12');
+ await child.locator('#generate').click();assert.equal(await child.locator('.match').count(),3);await page.locator('#langFrBtn').click();await child.locator('#bracketStatus').filter({hasText:'Aperçu généré'}).waitFor();
+ const formBox=await page.locator('#eventForm').boundingBox(),newBox=await page.locator('#workflowFrame').boundingBox();assert.ok(newBox.y>formBox.y+formBox.height);
+ await page.evaluate(()=>scrollTo(0,0));if(process.env.SCREENSHOT_DIR)await page.screenshot({path:path.join(process.env.SCREENSHOT_DIR,'organizer-complete-desktop.png'),fullPage:true});
+ await page.setViewportSize({width:390,height:844});assert.equal(await page.locator('body').evaluate(n=>n.scrollWidth<=innerWidth),true);assert.equal(await child.locator('body').evaluate(n=>n.scrollWidth<=innerWidth),true);
+ if(process.env.SCREENSHOT_DIR)await page.screenshot({path:path.join(process.env.SCREENSHOT_DIR,'organizer-complete-mobile.png'),fullPage:true});
+ await page.locator('#closeCreateBtn').click();assert.equal(await page.locator('#createPanel').isVisible(),false);assert.equal(await child.locator('#share').isVisible(),true);await page.locator('#createEventBtn').click();assert.equal(await page.locator('#createPanel').isVisible(),true);assert.equal(await page.locator('[name=title]').inputValue(),'');
+ assert.deepEqual(writes,[]);assert.deepEqual(errors,[]);console.log('PASS composition: complete original field schema/order, dynamic participation mode, original preview/open/close/FR/EN, appended tools, context sync, mobile and no writes.');
+ }finally{await browser.close();}})().catch(e=>{console.error(e);process.exitCode=1;});
