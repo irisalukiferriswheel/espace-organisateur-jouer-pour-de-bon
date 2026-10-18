@@ -1,0 +1,26 @@
+const {chromium}=require(process.env.PLAYWRIGHT_MODULE||'playwright');
+const fs=require('node:fs'),path=require('node:path'),assert=require('node:assert/strict');
+(async()=>{const browser=await chromium.launch({headless:true,channel:'msedge'});try{
+ const page=await browser.newPage({viewport:{width:1280,height:1000}}),errors=[],requests=[];
+ page.on('pageerror',e=>errors.push(e.message));page.on('request',r=>requests.push(r.url()));
+ await page.route('**/*',r=>{const url=new URL(r.request().url());assert.equal(url.origin,'https://preview.test');const file=url.pathname==='/'?'preview.html':url.pathname.slice(1);return r.fulfill({body:fs.readFileSync(path.join(__dirname,'..',file)),contentType:file.endsWith('.js')?'text/javascript':file.endsWith('.css')?'text/css':'text/html; charset=utf-8'});});
+ await page.goto('https://preview.test/');assert.equal(await page.locator('.card').count(),5);assert.equal(await page.locator('#summaryCount').innerText(),'3');
+ await page.locator('#search').fill('Robin');await page.locator('#directory input').check();assert.equal(await page.locator('#summaryCount').innerText(),'4');
+ await page.locator('#search').fill('');await page.locator('#capacity').fill('4');await page.locator('#capacity').dispatchEvent('change');
+ await page.getByRole('checkbox',{name:'SA Sacha',exact:true}).click();
+ assert.equal(await page.locator('#summaryCount').innerText(),'4');assert.ok((await page.locator('#playerStatus').innerText()).includes('Capacité'));
+ await page.getByRole('button',{name:'Retirer Robin',exact:true}).click();
+ await page.locator('#en').click();assert.equal(await page.locator('#summaryCount').innerText(),'3');assert.equal(await page.locator('#generate').innerText(),'Generate demo bracket');
+ await page.locator('#generate').click();assert.equal(await page.locator('.round').count(),2);assert.equal(await page.locator('.match').count(),3);assert.ok((await page.locator('#bracket').innerText()).includes('Bye'));assert.equal(await page.locator('#capacity').isDisabled(),true);
+ await page.locator('#fr').click();assert.ok((await page.locator('#bracket').innerText()).includes('Exemption'));
+ const png=require('pngjs').PNG.sync.read(await page.locator('#qr').screenshot());const decoded=require('jsqr')(new Uint8ClampedArray(png.data),png.width,png.height);assert.equal(decoded.data,'https://example.org/jpdb-demo');
+ assert.equal(await page.locator('#download').getAttribute('download'),'jpdb-demo-qr.svg');
+ await page.evaluate(()=>scrollTo(0,0));
+ if(process.env.SCREENSHOT_DIR)await page.screenshot({path:path.join(process.env.SCREENSHOT_DIR,'organizer-frontend-desktop.png'),fullPage:true});
+ await page.locator('#edit').click();await page.locator('#format').selectOption('none');assert.equal(await page.locator('#generate').isDisabled(),true);assert.equal(await page.locator('.match').count(),0);
+ await page.locator('#reset').click();await page.locator('#generate').click();await page.setViewportSize({width:390,height:844});assert.equal(await page.locator('body').evaluate(n=>n.scrollWidth<=innerWidth),true);
+ if(process.env.SCREENSHOT_DIR)await page.screenshot({path:path.join(process.env.SCREENSHOT_DIR,'organizer-frontend-mobile.png'),fullPage:true});
+ await page.reload();assert.equal(await page.locator('.match').count(),0);assert.equal(await page.locator('#summaryCount').innerText(),'3');
+ assert.deepEqual(errors,[]);assert.ok(requests.every(u=>u.startsWith('https://preview.test/')));
+ console.log('PASS frontend-only preview: fictional picker/capacity, FR/EN state, bracket/byes/edit, demo QR decode/download, mobile, reload reset, no external requests.');
+ }finally{await browser.close();}})().catch(e=>{console.error(e);process.exitCode=1;});
