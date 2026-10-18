@@ -30,15 +30,21 @@ const eventId='11111111-1111-4111-8111-111111111111',playerId='22222222-2222-422
     });</script>`}));
   await page.goto('https://www.jouerpourdebon.ca/test');const frame=page.frameLocator('iframe');
   await frame.locator('#createEventBtn').click();
+  assert.equal(await frame.locator('#draftInvitationPlan').isVisible(),true);
+  assert.equal(await frame.locator('#draftTournamentFormat').isDisabled(),true);
+  assert.equal(await frame.locator('#draftSharingGuide button').isDisabled(),true);
+  assert.equal(await frame.locator('#draftSharingGuide .event-qr').count(),0);
   await frame.locator('[name=title]').fill('Chess night');await frame.locator('[name=activityType]').fill('Chess');
   await frame.locator('[name=date]').fill('2099-01-01');await frame.locator('[name=startTime]').fill('13:00');await frame.locator('[name=endTime]').fill('15:00');await frame.locator('[name=city]').fill('Montreal');
   await frame.locator('[name=fee]').fill('0');await frame.locator('[name=capacity]').fill('2');
   await frame.locator('#organizerCause').selectOption(playerId);
-  await frame.locator('#draftInviteQuery').fill('Al');await frame.getByRole('button',{name:'Rechercher des joueurs',exact:true}).click();await frame.getByRole('checkbox',{name:'Alice · Montreal'}).check();
+  await frame.locator('#draftInviteQuery').fill('Al');await frame.getByRole('button',{name:'Rechercher des joueurs',exact:true}).click();await frame.getByRole('checkbox',{name:'Alice'}).check();
   assert.equal(await frame.locator('#openRemainingSpots').isChecked(),false);
   await frame.locator('#langEnBtn').click();
   await frame.getByRole('button',{name:'Find players',exact:true}).waitFor();
-  assert.equal(await frame.getByRole('checkbox',{name:'Alice · Montreal'}).isChecked(),true);
+  assert.ok((await frame.locator('#draftTournamentGuide').innerText()).includes('Tournament format and bracket'));
+  assert.ok((await frame.locator('#draftSharingGuide').innerText()).includes('QR available after publication'));
+  assert.equal(await frame.getByRole('checkbox',{name:'Alice'}).isChecked(),true);
   assert.equal(await frame.locator('[name=title]').inputValue(),'Chess night');
   assert.equal(await frame.locator('[name=capacity]').inputValue(),'2');
   assert.equal(await frame.locator('#draftInviteQuery').inputValue(),'Al');
@@ -52,11 +58,20 @@ const eventId='11111111-1111-4111-8111-111111111111',playerId='22222222-2222-422
   await page.evaluate(()=>window.failPlan=true);await frame.getByRole('button',{name:'Ouvrir le brouillon'}).click();await frame.locator('#retryInvitePlan').waitFor({state:'visible'});
   const before=(await page.evaluate(()=>calls)).filter(c=>c.type==='JPDB_ORGANIZER_UPDATE_DRAFT').length;await frame.locator('#saveDraftBtn').click();assert.equal((await page.evaluate(()=>calls)).filter(c=>c.type==='JPDB_ORGANIZER_UPDATE_DRAFT').length,before);
   await page.evaluate(()=>window.failPlan=false);await frame.locator('#retryInvitePlan').click();await frame.locator('#draftInviteSelected').getByRole('button',{name:'Alice ×'}).waitFor();
-  if(process.env.SCREENSHOT_DIR)await frame.locator('#draftInvitationPlan').screenshot({path:path.join(process.env.SCREENSHOT_DIR,'invite-selection.png')});
+  assert.equal(await frame.locator('#draftTournamentGuide').isVisible(),true);
+  assert.equal(await frame.locator('#draftSharingGuide').isVisible(),true);
+  if(process.env.SCREENSHOT_DIR){
+    await frame.locator('#draftInvitationPlan').screenshot({path:path.join(process.env.SCREENSHOT_DIR,'invite-selection.png')});
+    await page.locator('iframe').evaluate((el,height)=>el.style.height=`${height}px`,await frame.locator('body').evaluate(el=>el.scrollHeight+100));
+    await page.setViewportSize({width:1100,height:5000});
+    await frame.locator('#createPanel').screenshot({path:path.join(process.env.SCREENSHOT_DIR,'organizer-draft-workflow.png')});
+    await page.setViewportSize({width:1000,height:900});
+  }
   await frame.locator('#publishBtn').click();await frame.locator('.event-qr').waitFor({state:'visible'});
   const qrUrl='https://www.jouerpourdebon.ca/competitions?jpdbEvent='+eventId+'&lang=fr';
   assert.equal(await frame.getByLabel('Lien d’inscription').inputValue(),qrUrl);
   const publishedPanel=frame.locator('#organizerExtras');
+  assert.equal(await publishedPanel.locator(':scope > :last-child').getAttribute('class'),'event-sharing');
   await publishedPanel.getByText('0 places occupées · 2 places restantes',{exact:true}).waitFor();
   assert.equal(await publishedPanel.getByRole('button',{name:'Inviter des joueurs',exact:true}).isEnabled(),true);
   assert.equal(new URL(await frame.getByRole('link',{name:'Facebook',exact:true}).getAttribute('href')).searchParams.get('u'),qrUrl);

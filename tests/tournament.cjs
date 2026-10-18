@@ -7,14 +7,14 @@ const fs=require('node:fs');const path=require('node:path');const assert=require
   await page.route('https://organizer.test/**',route=>{const file=new URL(route.request().url()).pathname.slice(1)||'index.html';return route.fulfill({body:fs.readFileSync(path.join(__dirname,'..',file)),contentType:file.endsWith('.js')?'text/javascript':file.endsWith('.css')?'text/css':'text/html; charset=utf-8'});});
   await page.route('https://jouer-pour-de-bon-api.onrender.com/**',route=>route.fulfill({json:{data:[]}}));
   await page.route('https://www.jouerpourdebon.ca/test',route=>route.fulfill({contentType:'text/html',body:`<iframe style="width:100%;height:2400px" src="https://organizer.test/"></iframe><script>
-   window.calls=[];window.failFinalize=false;window.tournament={format:'none',finalizedAt:null,entrants:[],rounds:[]};
+   window.calls=[];window.failRead=true;window.failFinalize=false;window.tournament={format:'none',finalizedAt:null,entrants:[],rounds:[]};
    const event={id:'11111111-1111-4111-8111-111111111111',title:'Chess',visibility:'published',competitionId:'22222222-2222-4222-8222-222222222222',registrationUrl:'https://www.jouerpourdebon.ca/competitions?jpdbEvent=11111111-1111-4111-8111-111111111111',startAt:'2099-01-01T17:00:00Z',timezone:'America/Toronto',games:['Chess'],city:'Montreal'};
    addEventListener('message',e=>{const m=e.data;if(m.source!=='jpdb-organizer')return;calls.push(m);
     const send=(type,payload)=>e.source.postMessage({source:'jpdb-wix',type,requestId:m.requestId,payload},'*');
     if(m.type==='JPDB_ORGANIZER_EMBED_READY')e.source.postMessage({source:'jpdb-wix',type:'JPDB_WIX_MEMBER_AUTH',loggedIn:true,isOrganisateur:true,roles:['Organisateur']},'*');
     if(m.type==='JPDB_ORGANIZER_REQUEST_EVENTS')send('JPDB_ORGANIZER_EVENTS',{events:[event]});
     if(m.type==='JPDB_ORGANIZER_REQUEST_PARTICIPANTS')send('JPDB_ORGANIZER_PARTICIPANTS',{participants:[{alias:'Alice',status:'confirmed'},{alias:'Bob',status:'confirmed'},{alias:'Carol',status:'confirmed'}],participantsCount:3,reservedCount:3,maxParticipants:8,spotsLeft:5});
-    if(m.type==='JPDB_ORGANIZER_REQUEST_TOURNAMENT')send('JPDB_ORGANIZER_TOURNAMENT',tournament);
+    if(m.type==='JPDB_ORGANIZER_REQUEST_TOURNAMENT'){if(failRead)e.source.postMessage({source:'jpdb-wix',type:'JPDB_ORGANIZER_ERROR',requestId:m.requestId,success:false},'*');else send('JPDB_ORGANIZER_TOURNAMENT',tournament);}
     if(m.type==='JPDB_ORGANIZER_SAVE_TOURNAMENT'){tournament.format=m.payload.format;send('JPDB_ORGANIZER_TOURNAMENT_SAVED',tournament);}
     if(m.type==='JPDB_ORGANIZER_FINALIZE_TOURNAMENT'){
      if(failFinalize){e.source.postMessage({source:'jpdb-wix',type:'JPDB_ORGANIZER_ERROR',requestId:m.requestId,success:false},'*');return;}
@@ -22,11 +22,19 @@ const fs=require('node:fs');const path=require('node:path');const assert=require
     }
    });</script>`}));
   await page.goto('https://www.jouerpourdebon.ca/test');const frame=page.frameLocator('iframe');
+  await frame.getByRole('button',{name:'Tournoi et tableau',exact:true}).click();
+  await frame.locator('.event-tournament [role=status]').filter({hasText:'Modification non confirmée'}).waitFor();
+  assert.equal(await frame.locator('#tournamentFormat').count(),0);
+  assert.equal(await frame.locator('#finalizeTournament').count(),0);
+  await page.evaluate(()=>{window.failRead=false});
+  await frame.getByRole('button',{name:'Actualiser le tournoi',exact:true}).click();
+  await frame.locator('#tournamentFormat').waitFor();
   await frame.getByRole('button',{name:'Lien et QR',exact:true}).click();
   const png=require('pngjs').PNG.sync.read(await frame.locator('.event-qr').screenshot());
   const decoded=require('jsqr')(new Uint8ClampedArray(png.data),png.width,png.height);
   assert.equal(decoded.data,'https://www.jouerpourdebon.ca/competitions?jpdbEvent=11111111-1111-4111-8111-111111111111&lang=fr');
   assert.equal(await frame.getByRole('link',{name:'Télécharger le QR',exact:true}).getAttribute('download'),'event-11111111-1111-4111-8111-111111111111.svg');
+  if(process.env.SCREENSHOT_DIR){await page.setViewportSize({width:1100,height:2600});await frame.locator('#organizerExtras').screenshot({path:path.join(process.env.SCREENSHOT_DIR,'organizer-published-workflow.png')});await page.setViewportSize({width:1000,height:900});}
   await frame.locator('#tournamentFormat').selectOption('single_elimination');
   await frame.getByRole('button',{name:'Enregistrer le format',exact:true}).click();
   await frame.locator('#confirmRosterLock').waitFor();assert.equal(await frame.locator('#finalizeTournament').isDisabled(),true);
@@ -51,6 +59,7 @@ const fs=require('node:fs');const path=require('node:path');const assert=require
   await frame.locator('.event-tournament').getByText('Liste verrouillée',{exact:false}).waitFor();
   assert.equal(await frame.locator('#finalizeTournament').count(),0);assert.equal(await frame.locator('.event-tournament li').count(),3);
   assert.ok((await frame.locator('.event-tournament').innerText()).includes('Participant privé'));
+  if(process.env.SCREENSHOT_DIR){await page.setViewportSize({width:1100,height:2600});await frame.locator('#organizerExtras').screenshot({path:path.join(process.env.SCREENSHOT_DIR,'organizer-generated-bracket.png')});await page.setViewportSize({width:1000,height:900});}
   await frame.locator('#langEnBtn').click();
   await frame.getByRole('button',{name:'Link and QR',exact:true}).click();
   await frame.locator('.event-tournament').getByText('Roster locked',{exact:false}).waitFor();

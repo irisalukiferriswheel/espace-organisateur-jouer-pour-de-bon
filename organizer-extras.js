@@ -80,13 +80,14 @@ window.OrganizerExtras = (() => {
     panel.append(el('p', event.title));
     const url = registrationUrl(event); currentShareUrl=url;
     if (!url) { status(tx("label_5bbe71782a59",{})); return; }
-    panel.append(el('p', tx("label_ddc9a700ed00",{})));
+    const shareSection=el('section','','event-sharing');
+    shareSection.append(el('h4',t('Partager — lien et QR','Share — link and QR')),el('p', tx("label_ddc9a700ed00",{})));
     const qr = qrcode(0, 'M'); qr.addData(url); qr.make();
     const svg = qr.createSvgTag({ cellSize: 6, margin: 24 });
     const image = el('img', '', 'event-qr'); setAttr(image,'alt',tx("label_52d432303296",{}));
     image.src = `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg)}`;
-    panel.append(image);
-    const field = el('input'); field.readOnly = true; field.value = url; setAttr(field,'aria-label',tx("label_2c71847149c4",{})); panel.append(field);
+    shareSection.append(image);
+    const field = el('input'); field.readOnly = true; field.value = url; setAttr(field,'aria-label',tx("label_2c71847149c4",{})); shareSection.append(field);
     const actions = el('div', '', 'event-card__actions');
     actions.append(button(tx("label_b17133f7ab04",{}), async () => {
       try { await navigator.clipboard.writeText(currentShareUrl); status(tx("label_f83520bd98f6",{})); }
@@ -101,11 +102,12 @@ window.OrganizerExtras = (() => {
     for(const [name,href] of [['Facebook',`https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(url)}`],['WhatsApp',`https://wa.me/?text=${encodeURIComponent(`${event.title}\n${url}`)}`]]) {
       const social=el('a',name,'secondary');social.href=href;social.target='_blank';social.rel='noopener noreferrer';actions.append(social);
     }
-    panel.append(actions);
+    shareSection.append(actions);
     panel.append(button(tx("label_22b99acbce36",{}), () => showInvitations(event)));
     panel.append(el('h4', tx("label_a41e32747f07",{})));
     mountParticipants(event);
     mountTournament(event);
+    panel.append(shareSection);
     h.focus(); panel.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
   }
   function inviteStatus(value) {
@@ -134,7 +136,7 @@ window.OrganizerExtras = (() => {
         if (checkbox.checked) selected.set(player.id, player); else selected.delete(player.id);
         updateSelection();
       });
-      const details = el('span'); details.append(el('strong', player.alias || tx("label_b80431a4642a",{})), el('small', player.city || ''));
+      const details = el('span'); details.append(el('strong', player.alias || tx("label_b80431a4642a",{})));
       label.append(checkbox, details); if (existing) label.append(el('span', inviteStatus(existing.status), 'event-badge')); list.append(label);
     }
     const more = panel.querySelector('#inviteMore'); more.hidden = !nextCursor; more.disabled = loading || sending;
@@ -214,6 +216,7 @@ window.OrganizerExtras = (() => {
     const row = el('div', '', 'event-card__actions');
     if (registrationUrl(event)) row.append(button(tx("label_6c3dbf45f8e2",{}), () => showShare(event)));
     row.append(button(tx("label_a41e32747f07",{}),()=>showParticipants(event)));
+    const tournament=button(t('Tournoi et tableau','Tournament and bracket'),()=>showParticipants(event));tournament.disabled=!context.authorized();row.append(tournament);
     const invite = button(tx("label_22b99acbce36",{}), () => showInvitations(event)); invite.disabled = !context.authorized(); row.append(invite); card.append(row);
   }
   function published(event) { showShare(event); }

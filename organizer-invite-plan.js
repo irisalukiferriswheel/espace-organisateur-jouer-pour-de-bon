@@ -14,7 +14,7 @@ window.OrganizerInvitePlan = (() => {
         if(input.checked&&selected.size>=50){input.checked=false;message(t('Maximum de 50 invitations.','Choose up to 50 invitees.'));return;}
         if(input.checked)selected.set(player.id,player);else selected.delete(player.id);render();
       });
-      label.append(input,node('span',`${player.alias||t('Joueur','Player')}${player.city?' · '+player.city:''}`));list.append(label);
+      label.append(input,node('span',player.alias||t('Joueur','Player')));list.append(label);
     }
     const chips=box.querySelector('#draftInviteSelected');chips.replaceChildren();
     for(const player of selected.values()) {
@@ -53,7 +53,21 @@ window.OrganizerInvitePlan = (() => {
     const info=localized('p','Sinon, seuls les joueurs ayant accepté leur invitation peuvent s’inscrire, même avec le QR.','Otherwise, only players who accepted an invitation can register, even with the QR.');box.append(info);
     const status=node('p');status.setAttribute('role','status');box.append(status);
     const retry=localized('button','Recharger la sélection enregistrée','Reload saved selection');retry.className='secondary';retry.type='button';retry.id='retryInvitePlan';retry.hidden=true;retry.addEventListener('click',()=>open(eventId));box.append(retry);
-    context.form.querySelector('.preview-card').before(box);render();
+    context.form.querySelector('.preview-card').before(box);
+    box.append(localized('p','Seuls les noms publics des joueurs ayant choisi de figurer dans le répertoire sont affichés. Une invitation ne confirme pas une inscription.','Only public names of players who opted into the directory are shown. An invitation does not confirm registration.'));
+    const tournament=node('fieldset');tournament.id='draftTournamentGuide';
+    tournament.append(localized('legend','Type de tournoi et tableau','Tournament format and bracket'));
+    const formatLabel=node('label');formatLabel.append(localized('span','Type de tournoi — disponible après publication','Tournament format — available after publication'));
+    const format=node('select');format.id='draftTournamentFormat';format.disabled=true;
+    format.append(localized('option','Élimination directe (avec exemptions)','Single elimination (with byes)'));
+    formatLabel.append(format);tournament.append(formatLabel);
+    tournament.append(localized('p','Après publication, ouvrez « Tournoi et tableau » pour enregistrer le format. Lorsque tous les joueurs sont inscrits et confirmés, finalisez la liste pour générer automatiquement le tableau. Cette action verrouille la liste et ferme les inscriptions.','After publication, open “Tournament and bracket” to save the format. Once all players are registered and confirmed, finalize the roster to generate the bracket automatically. This locks the roster and closes registration.'));
+    box.after(tournament);
+    const sharing=node('fieldset');sharing.id='draftSharingGuide';
+    sharing.append(localized('legend','Partager l’événement — lien et QR','Share the event — link and QR'));
+    sharing.append(localized('p','Votre lien permanent et votre QR téléchargeable apparaîtront ici après publication. Vous pourrez copier le lien ou le partager sur vos réseaux. Le QR respecte les invitations, les places disponibles et les conditions d’inscription.','Your permanent link and downloadable QR will appear here after publication. Copy the link or share it on social media. The QR respects invitations, available capacity and registration requirements.'));
+    const download=localized('button','QR disponible après publication','QR available after publication');download.type='button';download.disabled=true;download.className='secondary';sharing.append(download);
+    context.form.append(sharing);render();
   }
   async function open(id=null) {
     generation++;const version=generation;eventId=id;selected=new Map();results=[];nextCursor=null;busy=false;ready=!id;
