@@ -43,6 +43,9 @@ let organizerEvents = [];
 let pendingSave = null;
 let eventsList = null;
 let editingEvent = null;
+let eventsRequestId = null;
+let hasSavedEvent = false;
+let eventsRequestSequence = 0;
 let wixAuth = {
   received: false,
   loggedIn: false,
@@ -52,7 +55,10 @@ let wixAuth = {
 };
 
 installParticipationModeField();
+OrganizerCauses.init(eventForm, () => language);
 installEventsList();
+OrganizerExtras.init({ anchor: formMessage, language: () => language, authorized: () => wixAuth.isOrganisateur, post: (type, payload) => postToWix(type, payload) });
+OrganizerInvitePlan.init({ form:eventForm, language:()=>language });
 initBridge();
 setLanguage(language);
 setOrganizerControlsEnabled(false);
@@ -91,6 +97,7 @@ function setOrganizerControlsEnabled(enabled) {
 
 function setLanguage(nextLanguage) {
   language = copy[nextLanguage] ? nextLanguage : 'fr';
+  OrganizerInvitePlan.translate();
   localStorage.setItem('pfg-organizer-language', language);
   document.documentElement.lang = language;
   document.title = language === 'fr' ? 'Espace organisateur — Jouer Pour de Bon' : 'Organizer space — Playing For Good';
@@ -117,14 +124,18 @@ function setLanguage(nextLanguage) {
 
 function openCreatePanel() {
   if (pendingSave) return;
+  OrganizerExtras.close();
   editingEvent = null;
   eventForm.reset();
+  OrganizerCauses.open();
+  OrganizerInvitePlan.open();
   updateEditorHeading();
   updatePreview();
   showEditor();
 }
 
 function showEditor() {
+  OrganizerExtras.close();
   createPanel.hidden = false;
   if (emptyState) emptyState.hidden = true;
   if (eventsList) eventsList.hidden = true;
@@ -174,6 +185,8 @@ function openDraft(eventItem) {
     const control = eventForm.elements.namedItem(name);
     if (control) control.value = value ?? '';
   }
+  OrganizerCauses.open(eventItem);
+  OrganizerInvitePlan.open(eventItem.id);
   formMessage.textContent = '';
   updateEditorHeading();
   updatePreview();
@@ -231,13 +244,15 @@ function initBridge() {
 
 function requestOrganizerEvents() {
   if (!wixAuth.isOrganisateur) return;
-  postToWix(MESSAGE_TYPES.requestEvents);
+  eventsRequestId = `events-${Date.now()}-${++eventsRequestSequence}`;
+  postToWix(MESSAGE_TYPES.requestEvents, { requestId: eventsRequestId });
 }
 
 function receiveWixMessage(event) {
   if (event.source !== window.parent || !ALLOWED_WIX_ORIGINS.has(event.origin)) return;
   const message = event.data;
   if (!message || message.source !== 'jpdb-wix') return;
+  if (OrganizerExtras.receive(message)) return;
 
   if (message.type === MESSAGE_TYPES.auth) {
     const roles = Array.isArray(message.roles)
@@ -271,7 +286,7 @@ function receiveWixMessage(event) {
       return;
     }
 
-    if (formMessage) formMessage.textContent = language === 'fr'
+    if (formMessage && !hasSavedEvent && !pendingSave) formMessage.textContent = language === 'fr'
       ? `Accès organisateur confirmé (${roles.join(', ')}).`
       : `Organizer access confirmed (${roles.join(', ')}).`;
 
@@ -280,6 +295,8 @@ function receiveWixMessage(event) {
   }
 
   if (message.type === MESSAGE_TYPES.events) {
+    // Old list requests must not erase a newer save/publication.
+    if (message.requestId ? message.requestId !== eventsRequestId : hasSavedEvent || pendingSave) return;
     organizerEvents = Array.isArray(message.payload?.events) ? message.payload.events : [];
     renderEvents();
     return;
@@ -288,6 +305,17 @@ function receiveWixMessage(event) {
   if (message.type === MESSAGE_TYPES.draftSaved) {
     if (!pendingSave || message.requestId !== pendingSave.id) return;
     const saveMode = pendingSave?.mode || 'draft';
+    const savedEvent = message.payload?.event;
+    if (savedEvent?.id) hasSavedEvent = true;
+    if (!savedEvent?.id || (saveMode === 'published' && savedEvent.visibility !== 'published')) {
+      clearPendingSave();
+      if (savedEvent?.id) editingEvent = savedEvent;
+      formMessage.textContent = language === 'fr'
+        ? 'L’enregistrement ou la publication n’a pas été confirmé. Votre formulaire est conservé. Vérifiez vos événements avant de réessayer.'
+        : 'Saving or publication was not confirmed. Your form is preserved. Check your events before retrying.';
+      requestOrganizerEvents();
+      return;
+    }
     clearPendingSave();
     if (message.payload?.event) {
       organizerEvents = [message.payload.event, ...organizerEvents.filter((eventItem) => eventItem.id !== message.payload.event.id)];
@@ -301,6 +329,8 @@ function receiveWixMessage(event) {
     createPanel.hidden = true;
     renderEvents();
     requestOrganizerEvents();
+    if (saveMode === 'published') OrganizerExtras.published(savedEvent);
+    formMessage.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
     return;
   }
 
@@ -347,6 +377,7 @@ function renderEvents() {
         <span>${escapeHtml(competitionLabel)}</span>
       </div>`;
     eventsList.appendChild(card);
+    OrganizerExtras.appendActions(card, eventItem);
     if (eventItem.visibility === 'draft') {
       const actions = document.createElement('div');
       actions.className = 'event-card__actions';
@@ -390,6 +421,7 @@ function handleSave(mode = 'draft') {
     return;
   }
   if (!eventForm.reportValidity()) return;
+  if (mode === 'published' && !OrganizerCauses.validatePublish()) return;
   if (!wixParentOrigin()) {
     if (formMessage) formMessage.textContent = copy[language].wixOnly;
     return;
@@ -401,6 +433,10 @@ function handleSave(mode = 'draft') {
     : `${Date.now()}-${Math.random().toString(36).slice(2)}`;
 
   const payload = getFormData();
+  const invitationPlan=OrganizerInvitePlan.value();
+  if(!invitationPlan)return;
+  Object.assign(payload,invitationPlan);
+  payload.causeId = OrganizerCauses.value();
   if (editingEvent) {
     payload.eventId = editingEvent.id;
     payload.maximumAge = editingEvent.maxAge;
@@ -428,6 +464,7 @@ function handleSave(mode = 'draft') {
   }, 25000);
 
   pendingSave = { id: requestId, timer, mode };
+  OrganizerInvitePlan.setBusy(true);
   const type = mode === 'published' ? MESSAGE_TYPES.publishEvent
     : editingEvent ? MESSAGE_TYPES.updateDraft : MESSAGE_TYPES.saveDraft;
   postToWix(type, { requestId, payload });
@@ -438,6 +475,7 @@ function handleDraft() {
 }
 
 function clearPendingSave() {
+  OrganizerInvitePlan.setBusy(false);
   if (pendingSave?.timer) clearTimeout(pendingSave.timer);
   pendingSave = null;
   if (saveDraftBtn) saveDraftBtn.disabled = !wixAuth.isOrganisateur;
